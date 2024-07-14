@@ -166,3 +166,6 @@ private.ini
 
 # Saved data
 *.pkl
+
+# Others
+.DS_Store
