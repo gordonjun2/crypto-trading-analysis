@@ -106,8 +106,8 @@ def plot_strategy(prices_df, signal_df, profit):
              label='Sell')
 
     ax2.plot(profit.index, profit, color='b')
-    ax2.set_ylabel('Cumulative Profit (%)')
-    ax2.set_xlabel('Date')
+    ax2.set_ylabel('Cumulative Profit (%)', fontsize=18)
+    ax2.set_xlabel('Date', fontsize=18)
 
     return ax1, ax2
 

@@ -3,9 +3,7 @@ numpy
 pandas
 datetime
 matplotlib
-yfinance
 statsmodels
 jupyterlab
 ipykernel
-python-okx
 urllib3==1.26.15
