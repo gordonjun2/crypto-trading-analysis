@@ -1,5 +1,7 @@
+import os
 import argparse
 import shutil
+import pickle
 from utils import *
 from cex_api.query_binance_data import *
 from cex_api.query_okx_data import *
@@ -8,7 +10,7 @@ from cex_api.query_bybit_data import *
 
 def save_ts_df(candlestick_data, dir_path, pair, start_date, end_date):
     """
-    Load and cache time series financial data.
+    Save time series financial data and associated metadata.
     """
 
     cached_file_path = '{}/{}_{}_{}.pkl'.format(dir_path, pair, start_date,
@@ -21,10 +23,34 @@ def save_ts_df(candlestick_data, dir_path, pair, start_date, end_date):
     df["Volume in USDT"] = pd.to_numeric(df["Volume in USDT"])
     df["Open Time"] = pd.to_numeric(df["Open Time"])
     df["Open Time"] = pd.to_datetime(df["Open Time"], unit='ms')
-    df["Open Time"] = df["Open Time"].dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    mean_volume = df["Volume in USDT"].mean()
+    metadata = {
+        'pair': pair,
+        'start_date': start_date,
+        'end_date': end_date,
+        'mean_volume': mean_volume
+    }
+
+    data_to_save = {'dataframe': df, 'metadata': metadata}
 
     os.makedirs(dir_path, exist_ok=True)
-    df.to_pickle(cached_file_path)
+    with open(cached_file_path, 'wb') as file:
+        pickle.dump(data_to_save, file)
+
+
+def load_ts_df(file_path):
+    """
+    Load time series financial data and associated metadata.
+    """
+
+    with open(file_path, 'rb') as file:
+        data = pickle.load(file)
+
+    df = data['dataframe']
+    metadata = data['metadata']
+
+    return df, metadata
 
 
 if __name__ == "__main__":
@@ -291,6 +317,4 @@ if __name__ == "__main__":
         print('\nInvalid CEX.\n')
         sys.exit(1)
 
-    print(
-        "\nData downloaded successfully. Please execute 'main.py' for the main program.\n"
-    )
+    print("\nData downloaded successfully. Please run 'main.py' next.\n")
