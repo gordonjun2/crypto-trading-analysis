@@ -2,6 +2,8 @@ import os
 import argparse
 import shutil
 import pickle
+from datetime import datetime
+import numpy as np
 from utils import *
 from cex_api.query_binance_data import *
 from cex_api.query_okx_data import *
@@ -51,6 +53,184 @@ def load_ts_df(file_path):
     metadata = data['metadata']
 
     return df, metadata
+
+
+def process_data(cex, interval, nan_remove_threshold, selected_pairs,
+                 top_n_volume_pairs):
+    """
+    Process and data.
+    """
+
+    dir_path = './saved_data/{}/{}'.format(cex.lower(), interval)
+    mean_volume_dict = {}
+    df_concat_list = []
+    column_to_drop_list = []
+    earliest_date_obj = datetime.max.date()
+    latest_date_obj = datetime.min.date()
+
+    if os.path.exists(dir_path):
+        files = os.listdir(dir_path)
+        if files:
+            for file in files:
+                file_path = dir_path + '/' + file
+                try:
+                    df, metadata = load_ts_df(file_path)
+                except:
+                    print(
+                        '\nUnable to load the file at {}. Skipping...'.format(
+                            file_path))
+                    continue
+
+                if df is None:
+                    print("\nNo data found for pair {}. Skipping...".format(
+                        pair))
+                    continue
+
+                pair = metadata['pair']
+                mean_volume_dict[pair] = metadata["mean_volume"]
+
+                if not selected_pairs or pair in selected_pairs:
+                    df = df.drop(columns=["Volume in USDT"]).rename(
+                        columns={"Close": pair})
+                    df.set_index("Open Time", inplace=True)
+                    df_concat_list.append(df)
+
+                    start_date = metadata['start_date']
+                    end_date = metadata['end_date']
+
+                    start_date_obj = datetime.strptime(start_date,
+                                                       "%Y-%m-%d").date()
+                    end_date_obj = datetime.strptime(end_date,
+                                                     "%Y-%m-%d").date()
+
+                    if start_date_obj < earliest_date_obj:
+                        earliest_date_obj = start_date_obj
+                    if end_date_obj > latest_date_obj:
+                        latest_date_obj = end_date_obj
+
+            if df_concat_list:
+                merged_df = pd.concat(df_concat_list, axis=1,
+                                      join="outer").reset_index()
+                merged_df = merged_df.sort_values("Open Time")
+
+                nan_columns = merged_df.columns[
+                    merged_df.isna().any()].tolist()
+                nan_counts = merged_df[nan_columns].isna().sum()
+                threshold = nan_remove_threshold * len(merged_df)
+
+                nan_columns_df = pd.DataFrame({
+                    'Pair':
+                    nan_counts.index,
+                    'NaN Count':
+                    nan_counts.values,
+                    'Remark':
+                    np.where(nan_counts > threshold, 'To Remove',
+                             'To Interpolate')
+                })
+
+                if not nan_columns_df.empty:
+                    nan_columns_df_sorted = nan_columns_df.sort_values(
+                        by='NaN Count', ascending=False)
+                    print("\nColumns that contains NaN values:")
+                    print(nan_columns_df_sorted)
+
+                    prev_df_column_len = merged_df.shape[1]
+
+                    column_to_drop_list = merged_df.columns[
+                        merged_df.isna().sum() > threshold]
+                    merged_df = merged_df.drop(columns=column_to_drop_list)
+
+                    curr_df_column_len = merged_df.shape[1]
+
+                    print(
+                        "\nRemoved {} pairs as they contain too many NaN values."
+                        .format(prev_df_column_len - curr_df_column_len))
+
+                filtered_mean_volume_dict = {
+                    k: v
+                    for k, v in mean_volume_dict.items()
+                    if k not in column_to_drop_list
+                }
+                sorted_pairs = sorted(
+                    filtered_mean_volume_dict.keys(),
+                    key=lambda x: filtered_mean_volume_dict[x],
+                    reverse=True)
+                filtered_sorted_pairs = sorted_pairs[:top_n_volume_pairs]
+
+                merged_df = merged_df[['Open Time'] + filtered_sorted_pairs]
+
+                print("\nFiltered top {} mean volume pairs.".format(
+                    top_n_volume_pairs))
+                print(
+                    "Successfully loaded candlestick dataframe for all available pairs."
+                )
+
+                print("\nEarliest time series start date: {}".format(
+                    earliest_date_obj))
+                print(
+                    "Latest time series end date: {}".format(latest_date_obj))
+
+            else:
+                print(
+                    "\nNo pair data found. Please check if the selected pairs are keyed in correctly."
+                )
+
+        else:
+            print(
+                "\nNo files found in the selected directory {}. Please run 'data_manager.py' to generate the data."
+                .format(dir_path))
+
+    else:
+        print(
+            "\nNo files found in the selected directory {}. Please run 'data_manager.py' to generate the data."
+            .format(dir_path))
+
+    return merged_df
+
+
+def sanitize_data(merged_df, start_date, end_date):
+
+    try:
+        start_date = pd.to_datetime(start_date)
+    except:
+        print(
+            "Invalid start date entered. Please enter the start date in YYYY-MM-DD format."
+        )
+        return {}, []
+
+    try:
+        end_date = pd.to_datetime(end_date)
+    except:
+        print(
+            "Invalid end date entered. Please enter the end date in YYYY-MM-DD format."
+        )
+        return {}, []
+
+    data_sanitized = {}
+
+    filtered_df = merged_df[(merged_df["Open Time"] >= start_date)
+                            & (merged_df["Open Time"] <= end_date)]
+    filtered_df.set_index("Open Time", inplace=True)
+
+    pairs = [col for col in filtered_df.columns]
+
+    for pair in pairs:
+        filtered_df.loc[:, pair] = filtered_df[pair].replace([np.inf, -np.inf],
+                                                             np.nan)
+        filtered_df.loc[:,
+                        pair] = filtered_df[pair].interpolate(method='linear')
+        filtered_df.loc[:, pair] = filtered_df[pair].ffill()
+        filtered_df.loc[:, pair] = filtered_df[pair].bfill()
+
+        assert not np.any(np.isnan(filtered_df[pair])) and not np.any(
+            np.isinf(filtered_df[pair]))
+
+        data_sanitized[pair] = pd.DataFrame({"Close": filtered_df[pair]},
+                                            index=filtered_df.index)
+
+    sorted_available_pairs = sorted(pairs)
+
+    return data_sanitized, sorted_available_pairs
 
 
 if __name__ == "__main__":
