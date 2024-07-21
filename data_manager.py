@@ -55,18 +55,39 @@ def load_ts_df(file_path):
     return df, metadata
 
 
-def process_data(cex, interval, nan_remove_threshold, selected_pairs,
-                 top_n_volume_pairs):
+def process_data(cex,
+                 interval,
+                 nan_remove_threshold,
+                 selected_pairs,
+                 top_n_volume_pairs,
+                 volume_filter_mode='rolling',
+                 day_limit=7):
     """
     Process and data.
     """
 
-    dir_path = './saved_data/{}/{}'.format(cex.lower(), interval)
-    mean_volume_dict = {}
+    cex = str(cex).lower()
+    interval = str(interval)
+    volume_filter_mode = str(volume_filter_mode).lower()
+
+    if volume_filter_mode not in ['rolling', 'mean']:
+        print("\nInvalid volume filter mode. Using 'rolling' mode instead.")
+        volume_filter_mode = 'rolling'
+
+    dir_path = './saved_data/{}/{}'.format(cex, interval)
+    volume_dict = {}
     df_concat_list = []
     column_to_drop_list = []
     earliest_date_obj = datetime.max.date()
     latest_date_obj = datetime.min.date()
+
+    if volume_filter_mode != 'mean':
+        interval_seconds = get_interval_seconds(cex, interval)
+
+        if interval_seconds == 0:
+            return None
+
+        rolling_window_value = int(day_limit * 86400 / interval_seconds)
 
     if os.path.exists(dir_path):
         files = os.listdir(dir_path)
@@ -87,9 +108,15 @@ def process_data(cex, interval, nan_remove_threshold, selected_pairs,
                     continue
 
                 pair = metadata['pair']
-                mean_volume_dict[pair] = metadata["mean_volume"]
 
                 if not selected_pairs or pair in selected_pairs:
+
+                    if volume_filter_mode == 'mean':
+                        volume_dict[pair] = metadata["mean_volume"]
+                    else:
+                        volume_dict[pair] = df['Volume in USDT'].rolling(
+                            window=rolling_window_value).mean().iloc[-1]
+
                     df = df.drop(columns=["Volume in USDT"]).rename(
                         columns={"Close": pair})
                     df.set_index("Open Time", inplace=True)
@@ -146,15 +173,14 @@ def process_data(cex, interval, nan_remove_threshold, selected_pairs,
                         "\nRemoved {} pairs as they contain too many NaN values."
                         .format(prev_df_column_len - curr_df_column_len))
 
-                filtered_mean_volume_dict = {
+                filtered_volume_dict = {
                     k: v
-                    for k, v in mean_volume_dict.items()
+                    for k, v in volume_dict.items()
                     if k not in column_to_drop_list
                 }
-                sorted_pairs = sorted(
-                    filtered_mean_volume_dict.keys(),
-                    key=lambda x: filtered_mean_volume_dict[x],
-                    reverse=True)
+                sorted_pairs = sorted(filtered_volume_dict.keys(),
+                                      key=lambda x: filtered_volume_dict[x],
+                                      reverse=True)
                 filtered_sorted_pairs = sorted_pairs[:top_n_volume_pairs]
 
                 merged_df = merged_df[['Open Time'] + filtered_sorted_pairs]
@@ -170,22 +196,28 @@ def process_data(cex, interval, nan_remove_threshold, selected_pairs,
                 print(
                     "Latest time series end date: {}".format(latest_date_obj))
 
+                return merged_df
+
             else:
                 print(
                     "\nNo pair data found. Please check if the selected pairs are keyed in correctly."
                 )
+
+                return None
 
         else:
             print(
                 "\nNo files found in the selected directory {}. Please run 'data_manager.py' to generate the data."
                 .format(dir_path))
 
+            return None
+
     else:
         print(
             "\nNo files found in the selected directory {}. Please run 'data_manager.py' to generate the data."
             .format(dir_path))
 
-    return merged_df
+        return None
 
 
 def sanitize_data(merged_df, start_date, end_date):
@@ -271,46 +303,12 @@ if __name__ == "__main__":
     end_timestamp = args.end
     limit = args.limit
 
-    if cex == 'binance':
-        if interval not in [
-                '1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h',
-                '12h', '1d', '3d', '1w', '1M'
-        ]:
-            print(
-                '\nThe interval is invalid. Available options: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M.\n'
-            )
-            sys.exit(1)
-        elif interval == '1m':
-            interval_seconds = 60
-        elif interval == '3m':
-            interval_seconds = 180
-        elif interval == '5m':
-            interval_seconds = 300
-        elif interval == '15m':
-            interval_seconds = 900
-        elif interval == '30m':
-            interval_seconds = 1800
-        elif interval == '1h':
-            interval_seconds = 3600
-        elif interval == '2h':
-            interval_seconds = 7200
-        elif interval == '4h':
-            interval_seconds = 14400
-        elif interval == '6h':
-            interval_seconds = 21600
-        elif interval == '8h':
-            interval_seconds = 28800
-        elif interval == '12h':
-            interval_seconds = 43200
-        elif interval == '1d':
-            interval_seconds = 86400
-        elif interval == '3d':
-            interval_seconds = 259200
-        elif interval == '1w':
-            interval_seconds = 604800
-        else:
-            interval_seconds = 2592000
+    interval_seconds = get_interval_seconds(cex, interval)
 
+    if interval_seconds == 0:
+        sys.exit(1)
+
+    if cex == 'binance':
         start_date, end_date = get_start_end_date(end_timestamp,
                                                   interval_seconds, limit)
 
@@ -346,49 +344,6 @@ if __name__ == "__main__":
                       format(pair))
 
     elif cex == 'okx':
-        if interval not in [
-                '1s', '1m', '3m', '5m', '15m', '30m', '1H', '2H', '4H', '6H',
-                '12H', '1D', '2D', '3D', '1W', '1M', '3M'
-        ]:
-            print(
-                '\nThe interval is invalid. Availble options: 1s, 1m, 3m, 5m, 15m, 30m, 1H, 2H, 4H, 6H, 12H, 1D, 2D, 3D, 1W, 1M, 3M.\n'
-            )
-            sys.exit(1)
-        elif interval == '1s':
-            interval_seconds = 1
-        elif interval == '1m':
-            interval_seconds = 60
-        elif interval == '3m':
-            interval_seconds = 180
-        elif interval == '5m':
-            interval_seconds = 300
-        elif interval == '15m':
-            interval_seconds = 900
-        elif interval == '30m':
-            interval_seconds = 1800
-        elif interval == '1H':
-            interval_seconds = 3600
-        elif interval == '2H':
-            interval_seconds = 7200
-        elif interval == '4H':
-            interval_seconds = 14400
-        elif interval == '6H':
-            interval_seconds = 21600
-        elif interval == '12H':
-            interval_seconds = 43200
-        elif interval == '1D':
-            interval_seconds = 86400
-        elif interval == '2D':
-            interval_seconds = 172800
-        elif interval == '3D':
-            interval_seconds = 259200
-        elif interval == '1W':
-            interval_seconds = 604800
-        elif interval == '1M':
-            interval_seconds = 2592000
-        else:
-            interval_seconds = 7776000
-
         start_date, end_date = get_start_end_date(end_timestamp,
                                                   interval_seconds, limit)
 
@@ -424,41 +379,6 @@ if __name__ == "__main__":
                       format(pair))
 
     elif cex == 'bybit':
-        if interval not in [
-                '1', '3', '5', '15', '30', '60', '120', '240', '360', '720',
-                'D', 'M', 'W'
-        ]:
-            print(
-                '\nThe interval is invalid. Availble options: 1, 3, 5, 15, 30, 60, 120, 240, 360, 720, D, M, W.\n'
-            )
-            sys.exit(1)
-        elif interval == '1':
-            interval_seconds = 60
-        elif interval == '3':
-            interval_seconds = 180
-        elif interval == '5':
-            interval_seconds = 300
-        elif interval == '15':
-            interval_seconds = 900
-        elif interval == '30':
-            interval_seconds = 1800
-        elif interval == '60':
-            interval_seconds = 3600
-        elif interval == '120':
-            interval_seconds = 7200
-        elif interval == '240':
-            interval_seconds = 14400
-        elif interval == '360':
-            interval_seconds = 21600
-        elif interval == '720':
-            interval_seconds = 43200
-        elif interval == 'D':
-            interval_seconds = 86400
-        elif interval == 'M':
-            interval_seconds = 2592000
-        else:
-            interval_seconds = 604800
-
         start_date, end_date = get_start_end_date(end_timestamp,
                                                   interval_seconds, limit)
 

@@ -3,6 +3,135 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
+def get_interval_seconds(cex, interval):
+
+    if cex == 'binance':
+        if interval not in [
+                '1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h',
+                '12h', '1d', '3d', '1w', '1M'
+        ]:
+            print(
+                '\nThe interval is invalid. Available options: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M.\n'
+            )
+            interval_seconds = 0
+        elif interval == '1m':
+            interval_seconds = 60
+        elif interval == '3m':
+            interval_seconds = 180
+        elif interval == '5m':
+            interval_seconds = 300
+        elif interval == '15m':
+            interval_seconds = 900
+        elif interval == '30m':
+            interval_seconds = 1800
+        elif interval == '1h':
+            interval_seconds = 3600
+        elif interval == '2h':
+            interval_seconds = 7200
+        elif interval == '4h':
+            interval_seconds = 14400
+        elif interval == '6h':
+            interval_seconds = 21600
+        elif interval == '8h':
+            interval_seconds = 28800
+        elif interval == '12h':
+            interval_seconds = 43200
+        elif interval == '1d':
+            interval_seconds = 86400
+        elif interval == '3d':
+            interval_seconds = 259200
+        elif interval == '1w':
+            interval_seconds = 604800
+        else:
+            interval_seconds = 2592000
+
+    elif cex == 'okx':
+        if interval not in [
+                '1s', '1m', '3m', '5m', '15m', '30m', '1H', '2H', '4H', '6H',
+                '12H', '1D', '2D', '3D', '1W', '1M', '3M'
+        ]:
+            print(
+                '\nThe interval is invalid. Availble options: 1s, 1m, 3m, 5m, 15m, 30m, 1H, 2H, 4H, 6H, 12H, 1D, 2D, 3D, 1W, 1M, 3M.\n'
+            )
+            interval_seconds = 0
+        elif interval == '1s':
+            interval_seconds = 1
+        elif interval == '1m':
+            interval_seconds = 60
+        elif interval == '3m':
+            interval_seconds = 180
+        elif interval == '5m':
+            interval_seconds = 300
+        elif interval == '15m':
+            interval_seconds = 900
+        elif interval == '30m':
+            interval_seconds = 1800
+        elif interval == '1H':
+            interval_seconds = 3600
+        elif interval == '2H':
+            interval_seconds = 7200
+        elif interval == '4H':
+            interval_seconds = 14400
+        elif interval == '6H':
+            interval_seconds = 21600
+        elif interval == '12H':
+            interval_seconds = 43200
+        elif interval == '1D':
+            interval_seconds = 86400
+        elif interval == '2D':
+            interval_seconds = 172800
+        elif interval == '3D':
+            interval_seconds = 259200
+        elif interval == '1W':
+            interval_seconds = 604800
+        elif interval == '1M':
+            interval_seconds = 2592000
+        else:
+            interval_seconds = 7776000
+
+    elif cex == 'bybit':
+        if interval not in [
+                '1', '3', '5', '15', '30', '60', '120', '240', '360', '720',
+                'D', 'M', 'W'
+        ]:
+            print(
+                '\nThe interval is invalid. Availble options: 1, 3, 5, 15, 30, 60, 120, 240, 360, 720, D, M, W.\n'
+            )
+            interval_seconds = 0
+        elif interval == '1':
+            interval_seconds = 60
+        elif interval == '3':
+            interval_seconds = 180
+        elif interval == '5':
+            interval_seconds = 300
+        elif interval == '15':
+            interval_seconds = 900
+        elif interval == '30':
+            interval_seconds = 1800
+        elif interval == '60':
+            interval_seconds = 3600
+        elif interval == '120':
+            interval_seconds = 7200
+        elif interval == '240':
+            interval_seconds = 14400
+        elif interval == '360':
+            interval_seconds = 21600
+        elif interval == '720':
+            interval_seconds = 43200
+        elif interval == 'D':
+            interval_seconds = 86400
+        elif interval == 'M':
+            interval_seconds = 2592000
+        else:
+            interval_seconds = 604800
+
+    else:
+        print('\nInvalid CEX.\n')
+        interval_seconds = 0
+
+    return interval_seconds
+
+
 def get_start_end_date(end_timestamp, interval_seconds, limit):
     if not end_timestamp:
         end_timestamp = get_current_timestamp_ms()
