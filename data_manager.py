@@ -18,20 +18,21 @@ def save_ts_df(candlestick_data, dir_path, pair, start_date, end_date):
     cached_file_path = '{}/{}_{}_{}.pkl'.format(dir_path, pair, start_date,
                                                 end_date)
 
-    columns = ["Open Time", "Close", "Volume in USDT"]
+    columns = ["Open Time", "Open", "High", "Low", "Close", "Volume in USDT"]
     df = pd.DataFrame(candlestick_data, columns=columns)
 
+    df["Open"] = pd.to_numeric(df["Open"])
+    df["High"] = pd.to_numeric(df["High"])
+    df["Low"] = pd.to_numeric(df["Low"])
     df["Close"] = pd.to_numeric(df["Close"])
     df["Volume in USDT"] = pd.to_numeric(df["Volume in USDT"])
     df["Open Time"] = pd.to_numeric(df["Open Time"])
     df["Open Time"] = pd.to_datetime(df["Open Time"], unit='ms')
 
-    mean_volume = df["Volume in USDT"].mean()
     metadata = {
         'pair': pair,
         'start_date': start_date,
         'end_date': end_date,
-        'mean_volume': mean_volume
     }
 
     data_to_save = {'dataframe': df, 'metadata': metadata}
@@ -55,7 +56,8 @@ def load_ts_df(file_path):
     return df, metadata
 
 
-def process_data(cex,
+def process_data(strategy,
+                 cex,
                  interval,
                  nan_remove_threshold,
                  selected_pairs,
@@ -66,10 +68,16 @@ def process_data(cex,
     Process and data.
     """
 
+    strategy = str(strategy).lower()
     cex = str(cex).lower()
     interval = str(interval)
     volume_filter_mode = str(volume_filter_mode).lower()
 
+    if strategy not in ['mean_reversion', 'low_correlation', 'beta_neutral']:
+        print(
+            "\nInvalid strategy. Available options: mean_reversion, low_correlation, beta_neutral."
+        )
+        return None
     if volume_filter_mode not in ['rolling', 'mean']:
         print("\nInvalid volume filter mode. Using 'rolling' mode instead.")
         volume_filter_mode = 'rolling'
@@ -112,13 +120,19 @@ def process_data(cex,
                 if not selected_pairs or pair in selected_pairs:
 
                     if volume_filter_mode == 'mean':
-                        volume_dict[pair] = metadata["mean_volume"]
+                        volume_dict[pair] = df["Volume in USDT"].mean()
                     else:
                         volume_dict[pair] = df['Volume in USDT'].rolling(
                             window=rolling_window_value).mean().iloc[-1]
 
-                    df = df.drop(columns=["Volume in USDT"]).rename(
-                        columns={"Close": pair})
+                    if strategy == 'beta_neutral':
+                        df['OHLC Average'] = (df['Open'] + df['Close']) / 2
+                        df = df.rename(columns={"OHLC Average": pair})
+                    else:
+                        df = df.rename(columns={"Close": pair})
+
+                    df = df.drop(
+                        columns=["Open", "High", "Low", "Volume in USDT"])
                     df.set_index("Open Time", inplace=True)
                     df_concat_list.append(df)
 
@@ -417,4 +431,6 @@ if __name__ == "__main__":
         print('\nInvalid CEX.\n')
         sys.exit(1)
 
-    print("\nData downloaded successfully. Please run 'main.py' next.\n")
+    print(
+        "\nData downloaded successfully. Please use any of the Jupyter Notebook next.\n"
+    )

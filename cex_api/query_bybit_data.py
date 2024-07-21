@@ -153,6 +153,9 @@ def get_bybit_perpetual_futures_candlestick_data(symbol,
             data = data[::-1]
             data = [[
                 candlestick[0],
+                candlestick[1],
+                candlestick[2],
+                candlestick[3],
                 candlestick[4],
                 candlestick[6],
             ] for candlestick in data]

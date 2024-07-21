@@ -125,6 +125,9 @@ def get_binance_perpetual_futures_candlestick_data(symbol,
         data = response.json()
         data = [[
             candlestick[0],
+            candlestick[1],
+            candlestick[2],
+            candlestick[3],
             candlestick[4],
             candlestick[7],
         ] for candlestick in data]

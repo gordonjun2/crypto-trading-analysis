@@ -160,6 +160,9 @@ def get_okx_perpetual_futures_candlestick_data(symbol,
             data = data[::-1]
             data = [[
                 candlestick[0],
+                candlestick[1],
+                candlestick[2],
+                candlestick[3],
                 candlestick[4],
                 candlestick[7],
             ] for candlestick in data if candlestick[-1] == '1']
