@@ -128,11 +128,14 @@ def process_data(strategy,
                     if strategy == 'beta_neutral':
                         df['OHLC Average'] = (df['Open'] + df['Close']) / 2
                         df = df.rename(columns={"OHLC Average": pair})
+                        df = df.drop(columns=[
+                            "Open", "High", "Low", "Close", "Volume in USDT"
+                        ])
                     else:
                         df = df.rename(columns={"Close": pair})
+                        df = df.drop(
+                            columns=["Open", "High", "Low", "Volume in USDT"])
 
-                    df = df.drop(
-                        columns=["Open", "High", "Low", "Volume in USDT"])
                     df.set_index("Open Time", inplace=True)
                     df_concat_list.append(df)
 
