@@ -117,8 +117,8 @@ def process_data(strategy,
 
                 pair = metadata['pair']
 
-                if not selected_pairs or pair in selected_pairs:
-
+                if (not selected_pairs and strategy
+                        != 'beta_neutral') or pair in selected_pairs:
                     if volume_filter_mode == 'mean':
                         volume_dict[pair] = df["Volume in USDT"].mean()
                     else:
@@ -202,8 +202,6 @@ def process_data(strategy,
 
                 merged_df = merged_df[['Open Time'] + filtered_sorted_pairs]
 
-                print("\nFiltered top {} mean volume pairs.".format(
-                    top_n_volume_pairs))
                 print(
                     "Successfully loaded candlestick dataframe for all available pairs."
                 )
