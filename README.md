@@ -3,6 +3,7 @@
 ### **Overview**
 This repository contains Jupyter notebooks implementing several pair trading strategies designed to minimize risk while maximizing returns. These strategies focus on profiting from relative price movements between cryptocurrencies, leveraging correlations and market dynamics.
 <br>
+<br>
 
 ### Included Strategies
 Please look into the respective Jupyter notebook for more explanations and details.
@@ -22,6 +23,7 @@ The beta neutral trading strategy is a market-neutral approach designed to elimi
 4. **Pairs-Trading (Beta Neutral) Strategy Analysis (Manual)** (*beta-neutral-pair-trading-manual.ipynb*)
 
 The strategy analysis is the same as 3., but this notebook allow users to manually set the portfolio weights and plot the returns of portfolio compared to market.
+<br>
 <br>
 
 ### Notes
