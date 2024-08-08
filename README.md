@@ -1,62 +1,68 @@
 # crypto-pair-trading
 
 ### **Overview**
+This repository contains Jupyter notebooks implementing several trading strategies designed to minimize risk while maximizing returns. These strategies focus on profiting from relative price movements between cryptocurrencies, leveraging correlations and market dynamics.
 
+### Included Strategies
+Please look into the respective Jupyter notebook for more explanations and details.
+
+1. **Pairs-Trading (Mean Reversion) Strategy Analysis** (*cointegration-pair-trading.ipynb*)
+
+Pair Trading Mean Reversion strategy is a market-neutral trading strategy that involves simultaneously buying and selling two correlated financial instruments, such as stocks, ETFs, or currencies, to profit from the relative price movement between them.
+
+2. **Pairs-Trading (Negative / Low Correlation) Strategy Analysis** (*correlation-pair-trading.ipynb*)
+
+The negative/low correlation pairs trading strategy involves taking advantage of the performance divergence between two loosely correlated or negatively correlated assets by longing the stronger asset and shorting the weaker one.
+
+3. **Pairs-Trading (Beta Neutral) Strategy Analysis (Auto)** (*beta-neutral-pair-trading-auto.ipynb*)
+
+The beta neutral trading strategy is a market-neutral approach designed to eliminate systematic market risk by constructing a portfolio that has a net beta of zero. This strategy aims to generate alpha (excess returns above the market) by taking both long and short positions in securities such that the overall portfolio is insulated from broad market movements. This notebook uses CVXPY package to optimise portfolio weights given a set of data.
+
+4. **Pairs-Trading (Beta Neutral) Strategy Analysis (Manual)** (*beta-neutral-pair-trading-manual.ipynb*)
+
+The strategy analysis is the same as 3., but this notebook allow users to manually set the portfolio weights and plot the returns of portfolio compared to market.
 <br>
 
 ### Notes
 - This is a **personal project** of mine and was not created under any entity.
 - Please be aware that the results provided by this project might not be 100% accurate due to potential bugs.
 - Please do not rely on this software to make financial decisions. **NFA**.
-
 <br>
 
 ### Future Updates
-
+- Collect open-source news data and overlay it on the price charts of selected cryptocurrencies to analyze how news events influence price movements.
 <br>
 
-### How It Works
-
-<br>
-
-### Data Sources
-- Yahoo Finance API
+### Data Sources and APIs
 - Binance API
     - DO NOT NEED KEYS
     - Endpoints to use:
-        - https://api.binance.com/api/v3/exchangeInfo (get tickers)
+        - GET /api/v3/exchangeInfo (get tickers)
         - GET /api/v3/klines (get OHLC data)
         - GET /api/v3/ticker/24hr (get 24hr price change percent)
 - Bybit API
     - DO NOT NEED KEYS
     - Endpoints to use:
-        - /v5/market/kline (get OHLC data)
         - /v5/market/instruments-info (get tickers)
+        - /v5/market/kline (get OHLC data)
         - /v5/market/tickers (get 24hr price change percent)
 - OKX API
     - DO NOT NEED KEYS
     - Endpoints to use:
+        - GET /api/v5/public/instruments (get tickers)
         - GET /api/v5/market/candles (get recent OHLC data)
         - GET /api/v5/market/history-candles (get historical OHLC data)
-        - GET /api/v5/public/instruments (get tickers)
         - GET /api/v5/market/tickers (get 24hr price change percent)
-
-
-### **APIs**
-1. [Bitquery](https://docs.bitquery.io/docs/intro/)
-    - Used to query on-chain DEX trades data
-    - ***REQUIRED*** and ***API keys REQUIRED***
-
 <br>
 
 ### **Installation**
 1. Clone the repository using
     ```
-    git clone https://github.com/gordonjun2/underground-dex-trades.git
+    git clone https://github.com/gordonjun2/crypto-pair-trading.git
     ```
 2. Navigate to the root directory of the repository.
     ```
-    cd underground-dex-trades
+    cd crypto-pair-trading
     ```
 3. Create a Python virtual environment for this project.
     ```
@@ -72,22 +78,103 @@
     ```
 6. Install jupyter kernel for the virtual environment.
     ```
-    python -m ipykernel install --user --name myenv --display-name "beta_neutral"
+    python -m ipykernel install --user --name venv --display-name "crypto-trading-strategies"
     ```
-7. Rename private keys file.
-    ```
-    mv private_template.ini private.ini
-    ```
-8. Sign up for *Bitquery API* [here](https://bitquery.io/) and get the respective keys in the link below.
-    - BITQUERY_CLIENT_ID: https://account.bitquery.io/user/api_v2/applications
-    - BITQUERY_CLIENT_SECRET: https://account.bitquery.io/user/api_v2/applications
-    - BITQUERY_V1_API_KEY: https://account.bitquery.io/user/api_v1/api_keys
-9. Sign up for *Vybe Network API* [here](https://www.vybenetwork.com/) and get the respective keys in the link below.
-    - VYBE_NETWORK_X_API_KEY: https://alpha.vybenetwork.com/dashboard/api-management
-10. Copy and save the keys into the private keys file.
 <br>
 
-### **Configuration**
-- ```BITQUERY_CLIENT_ID```: Bitquery Client ID from ```private.ini``` file
+### How to Use
+
+#### Price Data Download
+- Data Manager Arguments
+    ```
+    -c      : Select CEX to get the perpetual futures' price data. 
+              Available values: binance, okx, bybit.
+
+    -i      : Select the price data interval. 
+              Available values for each CEX:
+                - binance: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 
+                           12h, 1d, 3d, 1w, 1M.
+                - okx:     1s, 1m, 3m, 5m, 15m, 30m, 1H, 2H, 4H, 6H, 
+                           12H, 1D, 2D, 3D, 1W, 1M, 3M.
+                - bybit:   1, 3, 5, 15, 30, 60, 120, 240, 360, 720, 
+                           D, M, W.
+                
+
+    -e      : Enter the price data end time in timestamp ms. Start 
+              time will be interval x limit before end time.
+
+    -l      : Select the no. of candlesticks to return. For example,
+              if 'binance' is chosen as the CEX and '1d' is chosen
+              as the interval, then selecting 1000 in this argument
+              will mean that 1000 days of price data for all 
+              available perpetual futures' assets will be downloaded.
+              Maximum available values for each CEX:
+                - binance: max 1500
+                - okx:     max 300
+                - bybit:   max 1000
+    ```
+- Run the command below to download the price data:
+    ```
+    python data_manager.py <set options and arguments here>
+
+    Eg. 
+    python data_manager.py -c binance -i 1d -l 365
+    ```
+- The data will be downloaded as *.pkl* file in the ***saved_data*** directory.
+    - The ***saved_data*** directory is organised in this manner:
+        ```
+        saved_data/
+            binance/
+                1h/
+                    <Asset 1 Price Data .pkl>
+                    <Asset 2 Price Data .pkl>
+                    ...
+                4h/
+                    ...
+                1d/
+                    ...
+                ...
+            okx/
+                1H/
+                    <Asset 1 Price Data .pkl>
+                    <Asset 2 Price Data .pkl>
+                    ...
+                4H/
+                    ...
+                1D/
+                    ...
+                ...
+            bybit/
+                60/
+                    <Asset 1 Price Data .pkl>
+                    <Asset 2 Price Data .pkl>
+                    ...
+                360/
+                    ...
+                D/
+                    ...
+                ...
+        ```
+    - Price data in each path will be overwritten *data_manager.py* is ran with the same argument value for *CEX* and *Interval*. Eg.
+        - The command below will download price data into the ./saved_data/binance/1d/ path.
+            ```
+            python data_manager.py -c binance -i 1d -l 365
+            ```
+        - The command below will delete and replace the price data in the ./saved_data/binance/1d/ path.
+            ```
+            python data_manager.py -c binance -i 1d -l 730
+            ```
+
+#### Analysis
+- After the price data is downloaded, you can start to use the Jupyter notebooks.
+- To open the Jupyter notebook, run
+    ```
+    jupyter notebook <selected .ipynb>
+
+    Eg.
+    jupyter notebook beta-neutral-pair-trading-auto.ipynb
+    ```
+- Continue to follow the instructions and explanations in the respective notebook to perform the trading analysis.
+- To execute the cell in the notebook, press 'SHIFT' + 'ENTER'.
 
 <br>

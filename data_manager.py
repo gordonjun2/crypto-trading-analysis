@@ -73,7 +73,10 @@ def process_data(strategy,
     interval = str(interval)
     volume_filter_mode = str(volume_filter_mode).lower()
 
-    if strategy not in ['mean_reversion', 'low_correlation', 'beta_neutral']:
+    if strategy not in [
+            'mean_reversion', 'low_correlation', 'beta_neutral',
+            'crash_recovery'
+    ]:
         print(
             "\nInvalid strategy. Available options: mean_reversion, low_correlation, beta_neutral."
         )
