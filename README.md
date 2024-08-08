@@ -2,6 +2,7 @@
 
 ### **Overview**
 This repository contains Jupyter notebooks implementing several pair trading strategies designed to minimize risk while maximizing returns. These strategies focus on profiting from relative price movements between cryptocurrencies, leveraging correlations and market dynamics.
+<br>
 
 ### Included Strategies
 Please look into the respective Jupyter notebook for more explanations and details.
