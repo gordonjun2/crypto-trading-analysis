@@ -23,6 +23,10 @@ The beta neutral trading strategy is a market-neutral approach designed to elimi
 4. **Pairs-Trading (Beta Neutral) Strategy Analysis (Manual)** (*beta-neutral-pair-trading-manual.ipynb*)
 
 The strategy analysis is the same as 3., but this notebook allow users to manually set the portfolio weights and plot the returns of portfolio compared to market.
+
+5. **Crypto Sentiment on Chart Analysis** (*crypto-sentiment-on-chart.ipynb*)
+
+This notebook aims to explore the potential relationship between sentiment on 4chan's Business and Finance board and the price action of selected cryptocurrencies. 4chan is a valuable source for sentiment analysis as its posts are freely accessible via its API, making it a cost-effective alternative to platforms like Twitter. The primary objective of this analysis is to investigate whether sentiment derived from 4chan posts can be correlated with the price movements of specific cryptocurrencies. By binning 4chan posts into specific time intervals and aligning them with cryptocurrency price charts, we can calculate a net sentiment score for each bin and observe any patterns or trends that may emerge.
 <br>
 <br>
 
