@@ -81,7 +81,7 @@ The strategy analysis is the same as 3., but this notebook allow users to manual
     ```
 6. Install jupyter kernel for the virtual environment.
     ```
-    python -m ipykernel install --user --name venv --display-name "crypto-trading-strategies"
+    python -m ipykernel install --user --name venv --display-name "crypto-trading-analysis"
     ```
 <br>
 
@@ -168,6 +168,31 @@ The strategy analysis is the same as 3., but this notebook allow users to manual
             python data_manager.py -c binance -i 1d -l 730
             ```
 
+#### Social Media Post Data Download
+- To use the *crypto-sentiment-on-chart.ipynb* notebook, you need to download social media post data. 
+- Currently, only post data from 4chan and selected dataset from Hugging Face can be download.
+- To download the latest few post data from 4chan:
+    - Change directory to *social_media_analysis*
+        ```
+        cd social_media_analysis
+        ```
+    - Run the command below:
+        ```
+        python data_manager.py
+        ```
+    - The data will be downloaded as *.pkl* file in the ***social_media_analysis/saved_data/4chan/*** directory.
+    - The data will be updated whenever the download command is ran. The dataframe in the *.pkl* will increase in size.
+- To download the selected dataset from Hugging Face:
+    - Change directory to *social_media_analysis*
+        ```
+        cd social_media_analysis
+        ```
+    - Run the command below:
+        ```
+        python download_hugging_face_data.py
+        ```
+    - The data will be downloaded as *.pkl* file in the ***social_media_analysis/saved_data/hugging_face/*** directory.
+
 #### Analysis
 - After the price data is downloaded, you can start to use the Jupyter notebooks.
 - To open the Jupyter notebook, run
@@ -179,5 +204,10 @@ The strategy analysis is the same as 3., but this notebook allow users to manual
     ```
 - Continue to follow the instructions and explanations in the respective notebook to perform the trading analysis.
 - To execute the cell in the notebook, press 'SHIFT' + 'ENTER'.
+
+<br>
+
+### Others
+- [Add, Update, and Remove Git Submodule](https://phoenixnap.com/kb/git-add-remove-update-submodule)
 
 <br>

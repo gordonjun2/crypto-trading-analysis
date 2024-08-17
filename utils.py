@@ -132,21 +132,6 @@ def get_interval_seconds(cex, interval):
     return interval_seconds
 
 
-def get_start_end_date(end_timestamp, interval_seconds, limit):
-    if not end_timestamp:
-        end_timestamp = get_current_timestamp_ms()
-    else:
-        end_timestamp = int(end_timestamp)
-
-    start_timestamp = calculate_start_ts(end_timestamp, interval_seconds,
-                                         limit)
-
-    end_date = convert_timestamp_to_date(end_timestamp)
-    start_date = convert_timestamp_to_date(start_timestamp)
-
-    return start_date, end_date
-
-
 def calculate_start_ts(end_time_ms, interval_seconds, limit):
     interval_ms = interval_seconds * 1000
     total_time_span_ms = interval_ms * limit
@@ -239,14 +224,3 @@ def plot_strategy(prices_df, signal_df, profit):
     ax2.set_xlabel('Date', fontsize=18)
 
     return ax1, ax2
-
-
-# def prep_ohlcv_data(self, symbols: List[str],
-#                     interval: str) -> Dict[str, pd.DataFrame]:
-#     """
-#     prepare data for multiple symbols in a dictionary
-#     """
-#     data = {symbol: self.load_data(symbol, interval) for symbol in symbols}
-#     return data
-
-# TODO need a function to slow down the API calls to avoid rate limiting

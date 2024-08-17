@@ -10,13 +10,10 @@ from cex_api.query_okx_data import *
 from cex_api.query_bybit_data import *
 
 
-def save_ts_df(candlestick_data, dir_path, pair, start_date, end_date):
+def save_ts_df(candlestick_data, dir_path, pair):
     """
     Save time series financial data and associated metadata.
     """
-
-    cached_file_path = '{}/{}_{}_{}.pkl'.format(dir_path, pair, start_date,
-                                                end_date)
 
     columns = ["Open Time", "Open", "High", "Low", "Close", "Volume in USDT"]
     df = pd.DataFrame(candlestick_data, columns=columns)
@@ -28,18 +25,71 @@ def save_ts_df(candlestick_data, dir_path, pair, start_date, end_date):
     df["Volume in USDT"] = pd.to_numeric(df["Volume in USDT"])
     df["Open Time"] = pd.to_numeric(df["Open Time"])
     df["Open Time"] = pd.to_datetime(df["Open Time"], unit='ms')
+    df = df.sort_values(by='Open Time', ascending=True).reset_index(drop=True)
+    start_datetime = df.iloc[0]['Open Time']
+    end_datetime = df.iloc[-1]['Open Time']
 
     metadata = {
         'pair': pair,
-        'start_date': start_date,
-        'end_date': end_date,
+        'start_datetime': start_datetime,
+        'end_datetime': end_datetime,
     }
 
     data_to_save = {'dataframe': df, 'metadata': metadata}
 
+    cached_file_path = '{}/{}_{}_{}.pkl'.format(dir_path, pair, start_datetime,
+                                                end_datetime)
+
     os.makedirs(dir_path, exist_ok=True)
     with open(cached_file_path, 'wb') as file:
         pickle.dump(data_to_save, file)
+
+
+def save_df(dataframe, dir_path, start_datetime, end_datetime):
+    """
+    Save dataframe.
+    """
+
+    cached_file_path = '{}/{}_{}.pkl'.format(dir_path, start_datetime,
+                                             end_datetime)
+
+    os.makedirs(dir_path, exist_ok=True)
+    with open(cached_file_path, 'wb') as file:
+        pickle.dump(dataframe, file)
+
+
+def save_sentiment_score_df(sentiment_score_df, dir_path, start_date,
+                            end_date):
+    """
+    Save sentiment score data.
+    """
+
+    merged_df = pd.DataFrame(columns=['Open Time', 'Sentiment Score'])
+    date_format = '%Y-%m-%d'
+    parsed_input_start_datetime = datetime.strptime(start_date, date_format)
+    parsed_input_end_datetime = datetime.strptime(
+        end_date, date_format).replace(hour=23, minute=59, second=59)
+
+    merged_df, files_to_delete = load_presaved_df(merged_df, dir_path)
+
+    merged_df = pd.concat([merged_df, sentiment_score_df],
+                          axis=0,
+                          ignore_index=True)
+    merged_df = merged_df.drop_duplicates(
+        subset='Open Time')  # Drop rows with duplicated 'Date Time'
+    merged_df = merged_df.sort_values(by='Open Time', ascending=True)
+    start_datetime = merged_df.iloc[0]['Open Time']
+    end_datetime = merged_df.iloc[-1]['Open Time']
+
+    delete_files(files_to_delete)
+    save_df(merged_df, dir_path, start_datetime, end_datetime)
+
+    merged_df = merged_df[
+        (merged_df['Open Time'] >= parsed_input_start_datetime)
+        & (merged_df['Open Time'] <= parsed_input_end_datetime)]
+    merged_df = merged_df.reset_index(drop=True)
+
+    return merged_df
 
 
 def load_ts_df(file_path):
@@ -54,6 +104,49 @@ def load_ts_df(file_path):
     metadata = data['metadata']
 
     return df, metadata
+
+
+def load_df(file_path):
+    """
+    Load dataframe.
+    """
+
+    with open(file_path, 'rb') as file:
+        dataframe = pickle.load(file)
+
+    return dataframe
+
+
+def load_presaved_df(merged_df, dir_path):
+
+    files_to_delete = []
+
+    if os.path.exists(dir_path):
+        files = os.listdir(dir_path)
+        if files:
+            expected_columns = set(merged_df.columns)
+
+            for file in files:
+                if not file.endswith('.pkl'):
+                    continue
+
+                file_path = dir_path + '/' + file
+                try:
+                    df = load_df(file_path)
+                except:
+                    continue
+
+                if df is None:
+                    continue
+
+                if set(df.columns) == expected_columns:
+                    merged_df = pd.concat([merged_df, df],
+                                          axis=0,
+                                          ignore_index=True)
+
+                files_to_delete.append(file_path)
+
+    return merged_df, files_to_delete
 
 
 def process_data(strategy,
@@ -75,7 +168,7 @@ def process_data(strategy,
 
     if strategy not in [
             'mean_reversion', 'low_correlation', 'beta_neutral',
-            'crash_recovery'
+            'sentiment_on_chart'
     ]:
         print(
             "\nInvalid strategy. Available options: mean_reversion, low_correlation, beta_neutral."
@@ -142,13 +235,11 @@ def process_data(strategy,
                     df.set_index("Open Time", inplace=True)
                     df_concat_list.append(df)
 
-                    start_date = metadata['start_date']
-                    end_date = metadata['end_date']
+                    start_date = metadata['start_datetime']
+                    end_date = metadata['end_datetime']
 
-                    start_date_obj = datetime.strptime(start_date,
-                                                       "%Y-%m-%d").date()
-                    end_date_obj = datetime.strptime(end_date,
-                                                     "%Y-%m-%d").date()
+                    start_date_obj = start_date.to_pydatetime().date()
+                    end_date_obj = end_date.to_pydatetime().date()
 
                     if start_date_obj < earliest_date_obj:
                         earliest_date_obj = start_date_obj
@@ -283,6 +374,20 @@ def sanitize_data(merged_df, start_date, end_date):
     return data_sanitized, sorted_available_pairs
 
 
+def delete_files(file_list):
+    for file_path in file_list:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print("Deleted: {}".format(file_path))
+            else:
+                print("File to delete not found: {}".format(file_path))
+        except Exception as e:
+            print("Error deleting {}: {}".format(file_path, e))
+
+    print("\n")
+
+
 if __name__ == "__main__":
 
     # Get arguments from terminal
@@ -327,14 +432,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if cex == 'binance':
-        start_date, end_date = get_start_end_date(end_timestamp,
-                                                  interval_seconds, limit)
-
         print("\nCEX: {}".format(cex.capitalize()))
         print("Interval: {}".format(interval))
         print("No. of candlesticks to save: {}".format(limit))
-        print("Start Date: {}".format(start_date))
-        print("End Date: {}".format(end_date))
 
         perpetual_futures_pairs = get_binance_perpetual_futures_pairs()
 
@@ -354,22 +454,16 @@ if __name__ == "__main__":
             if candlestick_data:
                 print('Saving pair {} candlestick data...'.format(pair))
 
-                save_ts_df(candlestick_data, dir_path, pair, start_date,
-                           end_date)
+                save_ts_df(candlestick_data, dir_path, pair)
 
             else:
                 print('No candlestick data found for pair {}. Skipping...'.
                       format(pair))
 
     elif cex == 'okx':
-        start_date, end_date = get_start_end_date(end_timestamp,
-                                                  interval_seconds, limit)
-
         print("\nCEX: {}".format(cex.capitalize()))
         print("Interval: {}".format(interval))
         print("No. of candlesticks to save: {}".format(limit))
-        print("Start Date: {}".format(start_date))
-        print("End Date: {}".format(end_date))
 
         perpetual_futures_pairs = get_okx_perpetual_futures_pairs()
 
@@ -389,22 +483,16 @@ if __name__ == "__main__":
             if candlestick_data:
                 print('Saving pair {} candlestick data...'.format(pair))
 
-                save_ts_df(candlestick_data, dir_path, pair, start_date,
-                           end_date)
+                save_ts_df(candlestick_data, dir_path, pair)
 
             else:
                 print('No candlestick data found for pair {}. Skipping...'.
                       format(pair))
 
     elif cex == 'bybit':
-        start_date, end_date = get_start_end_date(end_timestamp,
-                                                  interval_seconds, limit)
-
         print("\nCEX: {}".format(cex.capitalize()))
         print("Interval: {}".format(interval))
         print("No. of candlesticks to save: {}".format(limit))
-        print("Start Date: {}".format(start_date))
-        print("End Date: {}".format(end_date))
 
         perpetual_futures_pairs = get_bybit_perpetual_futures_pairs()
 
@@ -424,8 +512,7 @@ if __name__ == "__main__":
             if candlestick_data:
                 print('Saving pair {} candlestick data...'.format(pair))
 
-                save_ts_df(candlestick_data, dir_path, pair, start_date,
-                           end_date)
+                save_ts_df(candlestick_data, dir_path, pair)
 
             else:
                 print('No candlestick data found for pair {}. Skipping...'.

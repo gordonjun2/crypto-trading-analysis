@@ -1,3 +1,3 @@
-[submodule "social-media-analysis"]
-	path = social-media-analysis
-	url = https://github.com/gordonjun2/social-media-analysis.git
+[submodule "social_media_analysis"]
+	path = social_media_analysis
+	url = https://github.com/gordonjun2/social_media_analysis.git
