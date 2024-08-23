@@ -83,6 +83,7 @@ def save_sentiment_score_df(sentiment_score_df, dir_path, start_date,
 
     delete_files(files_to_delete)
     save_df(merged_df, dir_path, start_datetime, end_datetime)
+    print("\n")
 
     merged_df = merged_df[
         (merged_df['Open Time'] >= parsed_input_start_datetime)
@@ -384,8 +385,6 @@ def delete_files(file_list):
                 print("File to delete not found: {}".format(file_path))
         except Exception as e:
             print("Error deleting {}: {}".format(file_path, e))
-
-    print("\n")
 
 
 if __name__ == "__main__":
