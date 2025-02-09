@@ -169,7 +169,7 @@ def process_data(strategy,
 
     if strategy not in [
             'mean_reversion', 'low_correlation', 'beta_neutral',
-            'sentiment_on_chart'
+            'sentiment_on_chart', 'volatility'
     ]:
         print(
             "\nInvalid strategy. Available options: mean_reversion, low_correlation, beta_neutral."
@@ -228,6 +228,11 @@ def process_data(strategy,
                         df = df.drop(columns=[
                             "Open", "High", "Low", "Close", "Volume in USDT"
                         ])
+                    elif strategy == 'volatility':
+                        df = df.rename(columns={"Close": pair + '_Close'})
+                        df = df.rename(columns={"High": pair + '_High'})
+                        df = df.rename(columns={"Low": pair + '_Low'})
+                        df = df.drop(columns=["Open", "Volume in USDT"])
                     else:
                         df = df.rename(columns={"Close": pair})
                         df = df.drop(
@@ -295,6 +300,12 @@ def process_data(strategy,
                                       reverse=True)
                 filtered_sorted_pairs = sorted_pairs[:top_n_volume_pairs]
 
+                if strategy == 'volatility':
+                    filtered_sorted_pairs = [
+                        f"{pair}_{suffix}" for pair in filtered_sorted_pairs
+                        for suffix in ["Close", "High", "Low"]
+                    ]
+
                 merged_df = merged_df[['Open Time'] + filtered_sorted_pairs]
 
                 print(
@@ -330,7 +341,10 @@ def process_data(strategy,
         return None
 
 
-def sanitize_data(merged_df, start_date, end_date):
+def sanitize_data(merged_df,
+                  start_date,
+                  end_date,
+                  is_volatility_strategy=False):
 
     try:
         start_date = pd.to_datetime(start_date)
@@ -353,24 +367,57 @@ def sanitize_data(merged_df, start_date, end_date):
     filtered_df = merged_df[(merged_df["Open Time"] >= start_date)
                             & (merged_df["Open Time"] <= end_date)]
     filtered_df.set_index("Open Time", inplace=True)
+    filtered_df = filtered_df.copy()
 
-    pairs = [col for col in filtered_df.columns]
+    if is_volatility_strategy:
+        sorted_available_pairs = sorted(
+            set(col.split("_")[0] for col in filtered_df.columns))
 
-    for pair in pairs:
-        filtered_df.loc[:, pair] = filtered_df[pair].replace([np.inf, -np.inf],
-                                                             np.nan)
-        filtered_df.loc[:,
-                        pair] = filtered_df[pair].interpolate(method='linear')
-        filtered_df.loc[:, pair] = filtered_df[pair].ffill()
-        filtered_df.loc[:, pair] = filtered_df[pair].bfill()
+        for pair in sorted_available_pairs:
+            close_col = f"{pair}_Close"
+            high_col = f"{pair}_High"
+            low_col = f"{pair}_Low"
 
-        assert not np.any(np.isnan(filtered_df[pair])) and not np.any(
-            np.isinf(filtered_df[pair]))
+            if not all(col in filtered_df.columns
+                       for col in [close_col, high_col, low_col]):
+                print(f"Skipping {pair} due to missing HLC columns.")
+                continue
 
-        data_sanitized[pair] = pd.DataFrame({"Close": filtered_df[pair]},
-                                            index=filtered_df.index)
+            for col in [close_col, high_col, low_col]:
+                filtered_df[col] = filtered_df[col].replace([np.inf, -np.inf],
+                                                            np.nan)
+                filtered_df[col] = filtered_df[col].interpolate(
+                    method='linear')
+                filtered_df[col] = filtered_df[col].ffill().bfill()
 
-    sorted_available_pairs = sorted(pairs)
+                assert not np.any(np.isnan(filtered_df[col])) and not np.any(
+                    np.isinf(filtered_df[col]))
+
+            data_sanitized[pair] = filtered_df[[close_col, high_col,
+                                                low_col]].rename(columns={
+                                                    close_col: "Close",
+                                                    high_col: "High",
+                                                    low_col: "Low"
+                                                })
+
+    else:
+        pairs = [col for col in filtered_df.columns]
+
+        for pair in pairs:
+            filtered_df.loc[:, pair] = filtered_df[pair].replace(
+                [np.inf, -np.inf], np.nan)
+            filtered_df.loc[:, pair] = filtered_df[pair].interpolate(
+                method='linear')
+            filtered_df.loc[:, pair] = filtered_df[pair].ffill()
+            filtered_df.loc[:, pair] = filtered_df[pair].bfill()
+
+            assert not np.any(np.isnan(filtered_df[pair])) and not np.any(
+                np.isinf(filtered_df[pair]))
+
+            data_sanitized[pair] = pd.DataFrame({"Close": filtered_df[pair]},
+                                                index=filtered_df.index)
+
+        sorted_available_pairs = sorted(pairs)
 
     return data_sanitized, sorted_available_pairs
 
