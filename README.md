@@ -27,6 +27,10 @@ The strategy analysis is the same as 3., but this notebook allow users to manual
 5. **Crypto Sentiment on Chart Analysis** (*crypto-sentiment-on-chart.ipynb*)
 
 This notebook aims to explore the potential relationship between sentiment on 4chan's Business and Finance board and the price action of selected cryptocurrencies. 4chan is a valuable source for sentiment analysis as its posts are freely accessible via its API, making it a cost-effective alternative to platforms like Twitter. The primary objective of this analysis is to investigate whether sentiment derived from 4chan posts can be correlated with the price movements of specific cryptocurrencies. By binning 4chan posts into specific time intervals and aligning them with cryptocurrency price charts, we can calculate a net sentiment score for each bin and observe any patterns or trends that may emerge.
+
+6. **Volatility Analysis** (*volatility-trading.ipynb*)
+
+This notebook aims to provide insights into price fluctuations and helping traders assess risk and identify profitable opportunities. In this analysis, several volatility metrics are calculated to give a comprehensive view of asset behavior and market risk.
 <br>
 <br>
 
