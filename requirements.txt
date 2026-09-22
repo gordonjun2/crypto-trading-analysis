@@ -10,3 +10,8 @@ cvxpy
 numpy
 scipy
 pyrogram
+# PairScout (added)
+typesafe-sdk==0.7.1
+python-telegram-bot==22.8
+python-dotenv==1.2.3
+pytest==9.1.1

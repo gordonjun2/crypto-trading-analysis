@@ -1,0 +1,55 @@
+# PairScout configuration. Copy to config.toml and tune as needed.
+# Secrets (TYPESAFE_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_ID) live in .env only.
+
+[data]
+cex = "binance"
+interval = "1h"
+data_dir = "saved_data"
+top_n_volume = 30          # universe size for combination scanning
+min_history_bars = 500
+max_nan_fraction = 0.02    # pairs with more gaps are dropped (never backfilled)
+trailing_volume_days = 7
+
+[screen]
+pvalue_max = 0.05          # Engle-Granger p-value cap (train window)
+half_life_min_bars = 4
+half_life_max_days = 30.0
+entry_z = 1.5              # |rolling spread z| required for an actionable setup
+watch_z = 1.0              # near-miss tier: everything else OK but |z| < entry_z
+zscore_window_bars = 15    # matches the cointegration notebook's window
+corr_lookback_days = 30.0
+momentum_lookback_days = 30.0
+min_dollar_volume = 1000000.0   # avg quote volume per day, trailing week, both legs
+atr_pct_max = 15.0
+skew_abs_max = 4.0
+vol_ratio_max = 4.0        # reject pairs dominated by one wild leg
+
+[jev]
+enabled = true             # model defaults to jev-latest; set model = "..." to override
+weight_reversion = 0.45
+weight_entry = 0.35
+weight_executability = 0.20
+min_composite = 0.60       # starting values; calibrate on the evaluation fold
+min_confidence = 0.40
+min_direction_noul = 0.60
+max_red_flag_noul = 0.50
+max_workers = 4
+top_k = 5
+max_candidates = 12        # JEV request cap per run (cost/latency control)
+timeout_seconds = 60.0
+max_retries = 4
+
+[backtest]
+fee_bps = 5.0              # per side per leg
+slippage_bps = 2.0
+entry_z = 1.5
+exit_z = 0.5
+stop_z = 3.5
+zscore_window_bars = 15
+sizing = "vol_balanced"    # "vol_balanced" | "equal"
+
+[eval]
+train_days = 40
+test_days = 22
+roll_days = 10             # fold 2 rolls the train/test boundary forward
+top_k = 3

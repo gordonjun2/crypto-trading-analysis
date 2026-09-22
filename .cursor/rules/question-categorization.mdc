@@ -1,0 +1,187 @@
+---
+description: Categorize user questions into specific crypto analysis categories using pattern matching
+alwaysApply: false
+---
+
+# Question Categorization Framework
+
+This rule defines how to categorize user questions into specific crypto analysis categories. **A single query can belong to multiple categories** - add the query to all applicable categories based on the patterns it contains.
+
+## Category Definitions and Patterns
+
+### TECHNICAL_ANALYSIS
+
+**Purpose**: Chart analysis, indicators, and price action patterns
+
+**Highest Signal Technical Terms**:
+- `MACD`, `RSI` (explicitly mentioned)
+- `Bollinger bands`, `BB`
+- `Fibonacci`, `fib levels`, `fib retracement`
+- `EMA cross`, `MA cross`, `golden cross`, `death cross`
+- `Stochastic RSI`
+- `Ichimoku cloud`
+- Chart patterns: `head and shoulders`, `double top`, `double bottom`
+- Time-specific charts: `4hr chart`, `daily chart`, `1h chart` (time + "chart")
+- `VWAP`
+- `support resistance`, `S/R levels`
+
+### DERIVATIVES_ANALYSIS
+
+**Purpose**: Futures, options, and derivative market analysis
+
+**Unique Derivatives Combinations**:
+- `funding rate`, `funding rates`
+- `open interest`, `OI` (as standalone)
+- `perps funding`, `perpetual funding`
+- `liquidation levels`, `liquidation data`
+- `long short ratio`, `LS ratio`
+- `futures basis`, `basis trade`
+- `max pain`
+- `options OI`, `options flow`
+- `CVD` (cumulative volume delta)
+- `market liquidation`, `total liquidations`
+
+### EVENTS
+
+**Purpose**: News, announcements, and time-sensitive market events
+
+**News-Specific Triggers**:
+- `news today`, `news this week`
+- `announcement`, `announcements`
+- `hack`, `exploit`, `security breach`
+- `partnership announcement`
+- `mainnet launch`, `testnet launch`
+- `token unlock`
+- `SEC lawsuit`, `regulatory news`
+- `listing announcement`
+- `acquisition`, `merger`
+
+### DISCOVER_ENTITIES
+
+**Purpose**: Finding and ranking tokens, protocols, or entities
+
+**Discovery-Specific Patterns**:
+- `top gainers`, `top losers`
+- `best performing`, `worst performing`
+- `highest TVL`, `lowest TVL`
+- `sort by volume`, `sort by market cap`
+- `trending tokens`, `trending protocols`
+- `movers today`
+- `[sector] tokens` (e.g., "AI tokens", "DeFi tokens")
+- `show me protocols`
+
+### ONCHAIN_ANALYSIS
+
+**Purpose**: Blockchain metrics and on-chain data analysis
+
+**Chain-Specific Metrics**:
+- `TVL` (standalone or with protocol/network)
+- `gas fees`, `gas price`, `gwei`
+- `network stats`, `network activity`
+- `whale activity`, `whale movements`
+- `smart money flow`
+- `netflow`, `exchange netflow`
+- `active addresses`, `unique addresses`
+- `DEX volume`, `DEX liquidity`
+- `bridge volume`, `cross-chain activity`
+- `staking ratio`
+
+
+### MEME_ANALYSIS
+
+**Purpose**: Contract safety and security analysis for meme tokens
+
+**Contract Safety Specific**:
+- `rug check`, `rugpull check`
+- `honeypot test`, `honeypot check`
+- `contract safety`, `contract audit`
+- `analyze contract`, `analyze [address]`
+- `holder distribution`
+- `liquidity locked`, `LP locked`
+- `ownership renounced`
+- `buy tax`, `sell tax`
+
+### MEME_DISCOVERY
+
+**Purpose**: Finding new meme tokens and meme-specific discovery
+
+**Meme Discovery Patterns**:
+- `trending memes`
+- `new memes`, `newly launched memes`
+- `safe meme coins`
+- `memes on [chain]` (e.g., "Solana memes", "Base memes")
+- `low cap memes`, `micro cap memes`
+- `meme coins by holders`
+
+### MARKET_METRICS
+
+**Purpose**: Market-wide sentiment and macro indicators
+
+**Market-Wide Only**:
+- `fear and greed`, `fear greed index`, `FGI`
+- `bitcoin dominance`, `BTC dominance`, `ETH dominance`
+- `total market cap`, `crypto market cap`
+- `altcoin season`, `alt season index`
+- `market sentiment index`
+- `crypto fear index`
+
+## Implementation Guidelines
+
+### Multi-Category Assignment
+```python
+def categorize_question(question: str) -> List[str]:
+    """
+    Categorize a question into one or more categories.
+    A single question can belong to multiple categories.
+    """
+    categories = []
+    question_lower = question.lower()
+    
+    # Check each category pattern
+    if matches_technical_analysis(question_lower):
+        categories.append("TECHNICAL_ANALYSIS")
+    
+    if matches_derivatives_analysis(question_lower):
+        categories.append("DERIVATIVES_ANALYSIS")
+    
+    # ... continue for all categories
+    
+    return categories
+```
+
+### Priority Rules
+1. **Exact matches** take precedence over partial matches
+2. **Multiple categories** are allowed and encouraged when patterns overlap
+3. **Context matters**: Consider the full question, not just individual terms
+4. **Case insensitive** matching for all patterns
+
+### Examples of Multi-Category Questions
+
+**Question**: "Show me RSI and funding rates for trending memes"
+**Categories**: `TECHNICAL_ANALYSIS`, `DERIVATIVES_ANALYSIS`, `MEME_DISCOVERY`
+
+**Question**: "What are the top performing AI tokens with highest TVL?"
+**Categories**: `DISCOVER_ENTITIES`, `ONCHAIN_ANALYSIS`
+
+**Question**: "Check contract safety and holder distribution for this new meme"
+**Categories**: `MEME_ANALYSIS`, `MEME_DISCOVERY`
+
+## Usage in Code
+
+When implementing question categorization:
+
+1. **Apply all patterns** to each question
+2. **Return all matching categories** as a list
+3. **Log the matching patterns** for debugging
+4. **Handle edge cases** where no patterns match (default to most general category)
+
+```python
+# Example usage
+question = "What's the RSI and MACD for Bitcoin today?"
+categories = categorize_question(question)
+# Result: ["TECHNICAL_ANALYSIS"]
+
+question = "Show me trending memes with locked liquidity"
+categories = categorize_question(question)  
+# Result: ["MEME_DISCOVERY", "MEME_ANALYSIS"]
+```

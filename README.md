@@ -219,3 +219,44 @@ This notebook aims to provide insights into price fluctuations and helping trade
 - [Add, Update, and Remove Git Submodule](https://phoenixnap.com/kb/git-add-remove-update-submodule)
 
 <br>
+
+---
+
+### **PairScout — Consolidated Screener (Python package)**
+
+`pair_scout/` consolidates the five pair-trading notebooks into one maintained,
+leakage-safe application: it screens all pair combinations of the top-N liquid
+Binance perps (Engle-Granger on log prices, both orientations), applies hard
+risk/liquidity filters, ranks surviving candidates with the **JEV** classifier
+(TypeSafe System One), validates the approach with a 3-arm walk-forward
+evaluation, and delivers a Telegram report. **Analysis only — no order
+placement.** See `IMPLEMENTATION_PLAN.md` for the full design, the notebook
+bugs it fixes, and the evaluation methodology + stated limitations.
+
+Setup (secrets live in `.env` only — see `.env.example`):
+
+```bash
+source venv/bin/activate
+pip install -r requirements.txt
+cp config.example.toml config.toml        # optional tuning
+
+python -m pair_scout run                  # screen + report (printed, NOT sent by default)
+python -m pair_scout run --send           # ... and deliver to Telegram
+python -m pair_scout run --no-jev         # rule-based ranking only
+python -m pair_scout evaluate             # 3-arm walk-forward evaluation
+python -m pair_scout refresh-data -c binance -i 1h -l 1500   # fresh klines
+pytest pair_scout/tests                   # test suite
+```
+
+Daily server cron example (after the 00:00 UTC candle closes):
+
+```
+15 0 * * * cd /path/to/crypto-trading-analysis && ./venv/bin/python -m pair_scout run --send >> pair_scout.log 2>&1
+```
+
+Evaluation conclusion (2025-07-02 → 2025-09-02 local data): the original
+notebook logic's attractive backtest is reproduced only when its look-ahead and
+in-sample selection are kept; on honest train/test splits cointegration
+persistence is ~3% and fee-aware performance is negative. ~62 days of one
+regime, one exchange, funding rates not modeled — directional evidence, not
+proof of profitability.
