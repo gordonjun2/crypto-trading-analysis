@@ -1,0 +1,160 @@
+pair_scout/analysis/cointegration.py
+  s_a2c07ddb3cbd7c::t_240eeb88ecf5ae 1-69,74-147
+  s_a2c07ddb3cbd7c::t_228a9cc1d47a1c 70-73
+pair_scout/screen.py
+  s_a2c07ddb3cbd7c::t_2ec4c83c77bc12 1-20,22-32,34-40,44-84,87-157,159-161,165-168,170,173-174
+  s_a2c07ddb3cbd7c::t_cf31b93b89c355 158,162-164,169,171-172
+  s_a2c07ddb3cbd7c::t_de2444a4230fa5 33,41-43
+  s_a2c07ddb3cbd7c::t_6db953c1273ca1 85-86
+  s_a2c07ddb3cbd7c::t_d767e606497878 21
+pair_scout/data/__init__.py
+  s_a2c07ddb3cbd7c::t_5da1032dda8bdf 1-3
+pair_scout/config.py
+  s_a2c07ddb3cbd7c::t_c39a526cd48ff8 1-49,51-67,70-201
+  s_a2c07ddb3cbd7c::t_df828ef7ac3186 50
+  s_a2c07ddb3cbd7c::t_a0d4ba2977ff19 68-69
+pair_scout/filters.py
+  s_a2c07ddb3cbd7c::t_f1fa77088bbb75 3-4,15-25,27,32,41-46,48,50,52,54,56,58-60,62-69,71-78,81,83-93
+  s_a2c07ddb3cbd7c::t_5172c5baaacb1c 1-2,5-14,26,28-31,33-40,47,49,51,53,55,57,61,70,79-80,82
+pair_scout/telegram.py
+  s_a2c07ddb3cbd7c::t_705226e3ebf131 1-66
+pair_scout/jev/questions.py
+  s_a2c07ddb3cbd7c::t_ebfff29c840112 1-96
+.env.example
+  s_a2c07ddb3cbd7c::t_a25bbc4c8b8ebb 1-9
+pair_scout/jev/__init__.py
+  s_a2c07ddb3cbd7c::t_efb1d4ac15aa42 1-31
+pair_scout/tests/test_report.py
+  s_a2c07ddb3cbd7c::t_321849ee8ff5bd 1-85
+pair_scout/pipeline.py
+  s_a2c07ddb3cbd7c::t_c455894aa1fc81 89
+  s_a2c07ddb3cbd7c::t_3ee9d530ef2747 94-99
+  s_a2c07ddb3cbd7c::t_9a9fc471c2c74c 1-62,64-69,71-74,76,78-88,90-93,100-120
+  s_a2c07ddb3cbd7c::t_dbeefd5248ab35 63,70,75,77
+pair_scout/data/loader.py
+  s_a2c07ddb3cbd7c::t_fa53fbb79f254d 1-80,83-165
+  s_a2c07ddb3cbd7c::t_a54b8e34467a33 81-82
+pair_scout/tests/test_config.py
+  s_a2c07ddb3cbd7c::t_778f19b77fd211 2
+  s_a2c07ddb3cbd7c::t_bc22a32469c041 1,3-125
+pair_scout/jev/client.py
+  s_a2c07ddb3cbd7c::t_d4300b6baeb93b 1-107
+pair_scout/analysis/beta.py
+  s_a2c07ddb3cbd7c::t_f741e81d540794 1-120
+pair_scout/__init__.py
+  s_a2c07ddb3cbd7c::t_0a04c7e0fe8567 1-6
+pair_scout/backtest/spread.py
+  s_a2c07ddb3cbd7c::t_54ae1317fc5626 1-183
+pair_scout/tests/test_cointegration.py
+  s_a2c07ddb3cbd7c::t_a039191a718838 1,3-14,17-18,20-29,31,33-40,42,46-73
+  s_a2c07ddb3cbd7c::t_7c66c919337fce 2
+  s_a2c07ddb3cbd7c::t_dfc63a8adf30f2 30,32
+  s_a2c07ddb3cbd7c::t_ce84c90c00706f 15-16,19
+  s_a2c07ddb3cbd7c::t_48a5e88c451cc0 41,43-45
+pair_scout/report.py
+  s_a2c07ddb3cbd7c::t_962b8b6d39a5c0 1-27,29-39,42-116
+  s_a2c07ddb3cbd7c::t_8990049c3dc88d 28,40-41
+pair_scout/output/evaluation_20260921_1814.md
+  s_a2c07ddb3cbd7c::t_6ecd333155c495 1-27
+pair_scout/output/evaluation_20260921_1816.md
+  s_a2c07ddb3cbd7c::t_55e2096ee8b5ee 1-27
+pair_scout/log.py
+  s_a2c07ddb3cbd7c::t_a651162e18854b 1-4,6-11,13-24
+  s_a2c07ddb3cbd7c::t_b175f1e82e1035 5,12
+config.example.toml
+  s_a2c07ddb3cbd7c::t_c3865d2ec327fd 18
+  s_a2c07ddb3cbd7c::t_51342e015ccec7 1-17,19-55
+pair_scout/features.py
+  s_a2c07ddb3cbd7c::t_fcd750d2622b93 1-45,48,53-156
+  s_a2c07ddb3cbd7c::t_66482ec79ad9f2 49
+  s_a2c07ddb3cbd7c::t_4df7abe26caf7d 50-52
+  s_a2c07ddb3cbd7c::t_2e92a595f74712 46-47
+pair_scout/cli.py
+  s_a2c07ddb3cbd7c::t_f8d596b338380f 1-116
+pair_scout/analysis/volatility.py
+  s_a2c07ddb3cbd7c::t_4162b9a6b897de 1-99
+pair_scout/backtest/evaluate.py
+  s_a2c07ddb3cbd7c::t_e0421ee90fa6be 155-156,159-162,164,167,172,174,176
+  s_a2c07ddb3cbd7c::t_ff22b1b65525fb 286-287
+  s_a2c07ddb3cbd7c::t_d6cf404a520030 289
+  s_a2c07ddb3cbd7c::t_af387db90f6f23 129-153
+  s_a2c07ddb3cbd7c::t_9d7e296cee7878 1-128,154,157-158,163,165-166,168-171,173,175,177-238,240-241,243-254,257,259-265,273-285,288,290-345
+  s_a2c07ddb3cbd7c::t_1ca577200ecde8 239,242,258,266-272
+  s_a2c07ddb3cbd7c::t_88cbda446ff174 255-256
+pair_scout/__main__.py
+  s_a2c07ddb3cbd7c::t_72a828bd61ba68 1-4
+pair_scout/analysis/correlation.py
+  s_a2c07ddb3cbd7c::t_831f1232e38e3d 1-69
+pair_scout/tests/conftest.py
+  s_a2c07ddb3cbd7c::t_84157dad3c96f9 1-55
+requirements.txt
+  s_a2c07ddb3cbd7c::t_fa7f5e6a54c17c 12-17
+pair_scout/tests/test_backtest.py
+  s_a2c07ddb3cbd7c::t_0b35b69514ddcd 1-6,8-30,32-45,54-111
+  s_a2c07ddb3cbd7c::t_f484645531ad2a 31
+  s_a2c07ddb3cbd7c::t_612b30a3060c61 7
+  s_a2c07ddb3cbd7c::t_6503136a24d84f 46-53
+README.md
+  s_a2c07ddb3cbd7c::t_e6a1798cb35fec 243
+  s_a2c07ddb3cbd7c::t_f993532b5e425b 222-242,244-262
+pair_scout/tests/test_features.py
+  s_a2c07ddb3cbd7c::t_2dd753920b85e7 12,16-18,21
+  s_a2c07ddb3cbd7c::t_66cc10deb97837 19
+  s_a2c07ddb3cbd7c::t_0570975b6e8688 1-11,13-15,22-55
+  s_a2c07ddb3cbd7c::t_8ecf155d4d6218 20
+IMPLEMENTATION_PLAN.md
+  s_a2c07ddb3cbd7c::t_0e6140e24e25ef 532-535
+  s_a2c07ddb3cbd7c::t_c275a953018dd2 3-4
+  s_a2c07ddb3cbd7c::t_7858b9e380177b 130-131
+  s_a2c07ddb3cbd7c::t_cc9e62022c7bc5 202-205
+  s_a2c07ddb3cbd7c::t_cf889eb1bb059e 81-101
+  s_a2c07ddb3cbd7c::t_b71526bb1cf561 320-321
+  s_a2c07ddb3cbd7c::t_2eadc37337a573 217-219
+  s_a2c07ddb3cbd7c::t_c883bb5e390910 1-2,5-6,11-80,102-129,133-160,167-201,209-210,215-216,220-222,225-237,239-305,311-319,322-339,341-397,407-456,458-463,471-473,475-482,500-507,510-531
+  s_a2c07ddb3cbd7c::t_5eccbfc62361d3 340
+  s_a2c07ddb3cbd7c::t_2696a3a763e0bb 223-224
+  s_a2c07ddb3cbd7c::t_4f1d5d99a7f78b 398-400
+  s_a2c07ddb3cbd7c::t_ff61dbe585e4f8 306-310
+  s_a2c07ddb3cbd7c::t_8d97a30fbb03ae 161-166
+  s_a2c07ddb3cbd7c::t_77bcd9adb682b5 464-470,474,483-499
+  s_a2c07ddb3cbd7c::t_c97a7f45f5f868 206-208,211-214
+  s_a2c07ddb3cbd7c::t_482ea22965d32b 7-10
+  s_a2c07ddb3cbd7c::t_64ad4b30bc3730 401-406
+  s_a2c07ddb3cbd7c::t_471b1d8e9753fd 132
+  s_a2c07ddb3cbd7c::t_6f131ed3db8ad8 457
+  s_a2c07ddb3cbd7c::t_6a72292c32f77b 508-509
+  s_a2c07ddb3cbd7c::t_74680980998e17 238
+pair_scout/tests/test_ranker.py
+  s_a2c07ddb3cbd7c::t_3f195af8a826a2 74-102
+  s_a2c07ddb3cbd7c::t_3a5527d54f5b1d 1-12,14-73,103-196
+  s_a2c07ddb3cbd7c::t_81d035c722721c 13
+pair_scout/analysis/__init__.py
+  s_a2c07ddb3cbd7c::t_c22cc42d679ab6 1-3
+pair_scout/tests/test_volatility.py
+  s_a2c07ddb3cbd7c::t_2c5f2455f5dd95 1-93
+pair_scout/jev/ranker.py
+  s_a2c07ddb3cbd7c::t_dd78429c5f50c2 1-89,93-103,108-112,114-120,122,124-143
+  s_a2c07ddb3cbd7c::t_f5889abcf71910 90-92,104-107,113
+  s_a2c07ddb3cbd7c::t_a142ec0e40f59f 121,123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8828ebe5ff1987cd5b0c2bc13f1fba80b50ddf58",
+  "prompts": {},
+  "humans": {
+    "h_54650ae5e74c9c": {
+      "author": "Gordon Oh <gordonoh@yahoo.com.sg>"
+    }
+  },
+  "sessions": {
+    "s_a2c07ddb3cbd7c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f3b002b8cffepYJ9CR84BMyK3R",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "Gordon Oh <gordonoh@yahoo.com.sg>"
+    }
+  }
+}
