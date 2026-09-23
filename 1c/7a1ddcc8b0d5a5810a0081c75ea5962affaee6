@@ -1,0 +1,157 @@
+pair_scout/jev/questions.py
+  s_a2c07ddb3cbd7c::t_ea626adcb43d44 75-95,99-127,129-150,152-154,156-168
+pair_scout/output/tune_divergence_20260922_1630.md
+  s_a2c07ddb3cbd7c::t_0c3b29e5407a99 1-44
+pair_scout/data/refresh.py
+  s_a2c07ddb3cbd7c::t_b424dfb18e86a1 1-132
+pair_scout/output/evaluation_divergence_20260922_1625.md
+  s_a2c07ddb3cbd7c::t_71bb5d387504fb 1-47
+pair_scout/backtest/spread.py
+  s_a2c07ddb3cbd7c::t_8e74cf3583274a 109,128,148-149,151
+  s_a2c07ddb3cbd7c::t_e1534a8c544224 115,211,237-239,242-246
+  s_a2c07ddb3cbd7c::t_8059ecf8b814a2 42-48,51-61,69-73
+  s_a2c07ddb3cbd7c::t_c90caae188802c 133-134,139-140
+  s_a2c07ddb3cbd7c::t_e07d04f836cdae 105,117,125,127,163,188-203,213,220-221,247-248,250-260
+  s_a2c07ddb3cbd7c::t_b938e6b40691e7 135-138
+  s_a2c07ddb3cbd7c::t_d0604860941d82 204,227,241
+  s_a2c07ddb3cbd7c::t_e813e8ff17d6ed 249
+  s_a2c07ddb3cbd7c::t_e142f3dc438b0c 277,282
+  s_a2c07ddb3cbd7c::t_02d48b32864e89 116,129,161,166-168,187,212,240
+  s_a2c07ddb3cbd7c::t_24f0cf8dd51515 76-77,79,83-86,92,94,97,100
+  s_a2c07ddb3cbd7c::t_578e83cd1f1f1b 106-108,110-114,118-124,126,130-132,141-147,150,152-160,162,164-165,169-186,205-210,214-219,222-226,228-236,355-358
+  s_a2c07ddb3cbd7c::t_711356a0aba80b 275-276,285
+  s_a2c07ddb3cbd7c::t_df1b0b510b1d6d 74-75
+pair_scout/features.py
+  s_a2c07ddb3cbd7c::t_f285ee6426cd19 16-24,26-28,30-39
+  s_a2c07ddb3cbd7c::t_202aad3fb9edb3 44-47
+  s_a2c07ddb3cbd7c::t_83c142b05f2e4e 127-133,150-151,163-164
+  s_a2c07ddb3cbd7c::t_c7b6673d6a7b06 176-177
+  s_a2c07ddb3cbd7c::t_af883f1971db5a 95-102
+  s_a2c07ddb3cbd7c::t_45839b5300398d 5
+pair_scout/output/evaluation_divergence_20260922_1646.md
+  s_a2c07ddb3cbd7c::t_4e2dc2f58f548b 1-58
+pair_scout/output/evaluation_divergence_20260922_1558.md
+  s_a2c07ddb3cbd7c::t_7d25d2e853acc8 1-26
+pair_scout/output/evaluation_divergence_20260922_1644.md
+  s_a2c07ddb3cbd7c::t_18b3c64dbe0fc5 1-47
+pair_scout/jev/regime.py
+  s_a2c07ddb3cbd7c::t_ae33e710dae272 1-160
+pair_scout/backtest/evaluate.py
+  s_a2c07ddb3cbd7c::t_1a89041d762791 279-287
+  s_a2c07ddb3cbd7c::t_35eb05158d88fe 337-338,341,356-357,361,390-391,394
+  s_a2c07ddb3cbd7c::t_840e613e40beb7 179-187
+  s_a2c07ddb3cbd7c::t_8d8b4ea8145a69 30-35
+  s_a2c07ddb3cbd7c::t_470a2bc7c08861 142-144,157,165-169,171-176,192-205
+  s_a2c07ddb3cbd7c::t_82afdee33d1135 104-105,112,118-122
+  s_a2c07ddb3cbd7c::t_9263b55f849d5d 347-351
+  s_a2c07ddb3cbd7c::t_02d48b32864e89 39,140,188-191,275,320-324,384-385
+  s_a2c07ddb3cbd7c::t_1687d26d34b6de 69
+  s_a2c07ddb3cbd7c::t_9b4572685c9fad 158-160,170
+  s_a2c07ddb3cbd7c::t_e1534a8c544224 138-139,145-156,178,311-319,383
+  s_a2c07ddb3cbd7c::t_77d058b5ffcbba 161-164,177
+pair_scout/tune.py
+  s_a2c07ddb3cbd7c::t_9e7f58a399c4c0 135-136
+  s_a2c07ddb3cbd7c::t_3cbaed1273e365 44-53
+  s_a2c07ddb3cbd7c::t_700c1d0eb4e4fc 80
+  s_a2c07ddb3cbd7c::t_d004355f0f4d13 22
+  s_a2c07ddb3cbd7c::t_b6af9602b06df9 28-31
+  s_a2c07ddb3cbd7c::t_e1534a8c544224 89-97,109
+  s_a2c07ddb3cbd7c::t_b708764f38230a 76
+  s_a2c07ddb3cbd7c::t_8066f79c7f088e 99-103,110
+  s_a2c07ddb3cbd7c::t_2d6ca2088ee410 57,63
+  s_a2c07ddb3cbd7c::t_c9bffceb653fc2 1-21,23-27,32-43,54-56,58-62,64-75,77-79,81-88,98,104-108,111-134,137-178
+pair_scout/output/evaluation_divergence_20260922_1639.md
+  s_a2c07ddb3cbd7c::t_ee1504212d5768 1-58
+pair_scout/output/evaluation_divergence_20260922_1557.md
+  s_a2c07ddb3cbd7c::t_7f7eb3fab14366 1-26
+pair_scout/report.py
+  s_a2c07ddb3cbd7c::t_1c23993a16e307 30,47-51
+  s_a2c07ddb3cbd7c::t_3ece7329426ae8 58,60,64-74,76,79,81,84,89-96
+pair_scout/tests/test_divergence.py
+  s_a2c07ddb3cbd7c::t_f285ee6426cd19 33
+  s_a2c07ddb3cbd7c::t_a4ef86c607a2e3 1-32,34-135
+pair_scout/output/evaluation_divergence_20260922_1640.md
+  s_a2c07ddb3cbd7c::t_efb6a0494466f6 1-59
+pair_scout/tests/test_config.py
+  s_a2c07ddb3cbd7c::t_4f6ee531db7b49 122
+  s_a2c07ddb3cbd7c::t_73f866e3723113 4
+  s_a2c07ddb3cbd7c::t_f285ee6426cd19 35
+pair_scout/pipeline.py
+  s_a2c07ddb3cbd7c::t_60658613c4b210 58-66,74,79,81
+  s_a2c07ddb3cbd7c::t_ee1504212d5768 70
+  s_a2c07ddb3cbd7c::t_1c23993a16e307 14,84-91,103
+pair_scout/output/evaluation_cointegration_20260922_1557.md
+  s_a2c07ddb3cbd7c::t_7f7eb3fab14366 1-27
+pair_scout/jev/client.py
+  s_a2c07ddb3cbd7c::t_b03a6f816e0857 20
+  s_a2c07ddb3cbd7c::t_acae3f9c79a53e 72
+pair_scout/config.py
+  s_a2c07ddb3cbd7c::t_29e9f615fc9124 202-204,208
+  s_a2c07ddb3cbd7c::t_3506cd0d75353d 167
+  s_a2c07ddb3cbd7c::t_f05aa12140d6c3 157,159,172-181
+  s_a2c07ddb3cbd7c::t_3e6c5e6c5e9105 56,61-64,94-101,162-165,184-193
+  s_a2c07ddb3cbd7c::t_efb6a0494466f6 158,160-161
+  s_a2c07ddb3cbd7c::t_02d48b32864e89 123,143-144,166,194-195
+  s_a2c07ddb3cbd7c::t_4d6439ff6db3f1 46,55,57-60,65,72-73,86-93
+  s_a2c07ddb3cbd7c::t_b938e6b40691e7 122
+  s_a2c07ddb3cbd7c::t_562b0e89e6e888 182-183
+pair_scout/screen.py
+  s_a2c07ddb3cbd7c::t_c05678a69aa8d0 10-11,15
+  s_a2c07ddb3cbd7c::t_d872e7c4de71c2 240-245
+  s_a2c07ddb3cbd7c::t_efa8c0c850730e 50,53-54,60-72,81,84-85,101-104,109-110,126-131,153-167,172-212
+  s_a2c07ddb3cbd7c::t_ec333a61e6da1c 111-125,132-152,168-171
+pair_scout/output/regime_cache.json
+  s_a2c07ddb3cbd7c::t_dd626f84fe915f 1-152
+config.example.toml
+  s_a2c07ddb3cbd7c::t_987e9cc5312dc2 14-15,18,23,29-33
+  s_a2c07ddb3cbd7c::t_379b916ccca4b3 59,63,65
+  s_a2c07ddb3cbd7c::t_efb6a0494466f6 24-28,48-49,64,66-73
+pair_scout/jev/ranker.py
+  s_a2c07ddb3cbd7c::t_4c66c7e9049a69 46-51,54-59,66
+  s_a2c07ddb3cbd7c::t_baada7a8f0afb0 114,118
+pair_scout/tests/test_ranker.py
+  s_a2c07ddb3cbd7c::t_ba4a76521c670b 24
+pair_scout/output/tune_divergence_20260922_1632.md
+  s_a2c07ddb3cbd7c::t_465bb5a053fac7 1-44
+README.md
+  s_a2c07ddb3cbd7c::t_9083523f8a763e 265
+  s_a2c07ddb3cbd7c::t_587d99ce25493d 228-241
+  s_a2c07ddb3cbd7c::t_ab0f070f8d5869 264,266-287
+pair_scout/filters.py
+  s_a2c07ddb3cbd7c::t_426d846c29f501 20,22-24,32
+  s_a2c07ddb3cbd7c::t_6c6c746d9e7e1b 56-57,68-102,132,135,137-142
+  s_a2c07ddb3cbd7c::t_e492ec99471eeb 58-67
+  s_a2c07ddb3cbd7c::t_840e613e40beb7 21
+  s_a2c07ddb3cbd7c::t_c5f530a5354f55 33
+pair_scout/cli.py
+  s_a2c07ddb3cbd7c::t_811fb142e2c8dc 146-147
+  s_a2c07ddb3cbd7c::t_296313d3ee9729 105-125
+  s_a2c07ddb3cbd7c::t_ef55908f3c6c64 30-31,33-34
+  s_a2c07ddb3cbd7c::t_2daf6ffe8b9419 150,153-154,156-161
+  s_a2c07ddb3cbd7c::t_79ec6ffab01989 176-177
+  s_a2c07ddb3cbd7c::t_bb832a12c9ffa7 72-95,97-100
+  s_a2c07ddb3cbd7c::t_915ea48f6692c7 48-68
+  s_a2c07ddb3cbd7c::t_fbc8432afe92e7 140-142
+  s_a2c07ddb3cbd7c::t_8ecc8a1b2281cc 69-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1c7a1ddcc8b0d5a5810a0081c75ea5962affaee6",
+  "prompts": {},
+  "humans": {
+    "h_54650ae5e74c9c": {
+      "author": "Gordon Oh <gordonoh@yahoo.com.sg>"
+    }
+  },
+  "sessions": {
+    "s_a2c07ddb3cbd7c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f3b002b8cffepYJ9CR84BMyK3R",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "Gordon Oh <gordonoh@yahoo.com.sg>"
+    }
+  }
+}
