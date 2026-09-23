@@ -164,7 +164,23 @@ class BacktestConfig:
     z_lookback_days: float = 30.0  # window for the momentum z-score
     momentum_shift_hours: float = 12.0  # skip recent bars (short-term reversal hedge)
     spread_stop_pct: float = 0.03  # adverse log-spread stop; 0 = off
+    spread_trail_pct: float = 0.0  # trailing stop below entry-peak spread; 0 = off
     reentry_cooldown_hours: float = 12.0  # no re-entry for N hours after an exit; 0 = off
+    # dispersion-scaled sizing (continuous risk allocation; replaces binary gates)
+    size_scaling: str = "off"  # off | combo | vol_target | jev_soft | market | efficiency | conviction
+    scale_metric: str = "disp_corr"  # market mode: disp_corr | disp | corr | chop
+    scale_min: float = 0.5  # multiplier bounds; symmetric around 1.0 keeps ~1x book
+    scale_max: float = 1.5
+    scale_slope: float = 0.3  # multiplier change per 1 sigma of the combined z
+    scale_z_lookback_days: float = 60.0  # trailing window for z-normalization
+    scale_disp_weight: float = 0.5  # weight on dispersion z (rest: inverse corr)
+    scale_vol_target: float = 0.10  # vol_target mode: annualized book vol target
+    # perpetual funding costs (the short leg's biggest unmodeled drag)
+    include_funding: bool = True  # model real perp funding on both legs
+    funding_stress: float = 1.0  # stress multiplier on historical funding (1 = as-is)
+    # weekend overlay: crypto weekend liquidity is thin and momentum books bleed
+    # there (walk-forward: DD -5.4% -> -4.8% at 0.5x, ret@1x +14.9% -> +15.7%)
+    weekend_size_scale: float = 1.0  # size multiplier on Sat/Sun UTC (1.0 = off)
 
     def __post_init__(self) -> None:
         if self.fee_bps < 0 or self.slippage_bps < 0:
@@ -191,8 +207,36 @@ class BacktestConfig:
             raise ConfigError("backtest.momentum_shift_hours must be >= 0")
         if self.spread_stop_pct < 0:
             raise ConfigError("backtest.spread_stop_pct must be >= 0")
+        if self.spread_trail_pct < 0:
+            raise ConfigError("backtest.spread_trail_pct must be >= 0")
         if self.reentry_cooldown_hours < 0:
             raise ConfigError("backtest.reentry_cooldown_hours must be >= 0")
+        if self.size_scaling not in (
+            "off", "market", "vol_target", "jev_soft", "combo", "efficiency",
+            "conviction",
+        ):
+            raise ConfigError(
+                "backtest.size_scaling must be one of: off, market, vol_target, "
+                "jev_soft, combo, efficiency, conviction"
+            )
+        if self.scale_metric not in ("disp_corr", "disp", "corr", "chop"):
+            raise ConfigError(
+                "backtest.scale_metric must be 'disp_corr', 'disp', 'corr' or 'chop'"
+            )
+        if not 0 < self.scale_min < self.scale_max:
+            raise ConfigError("backtest.scale bounds must satisfy 0 < scale_min < scale_max")
+        if self.scale_slope < 0:
+            raise ConfigError("backtest.scale_slope must be >= 0")
+        if self.scale_z_lookback_days < 10:
+            raise ConfigError("backtest.scale_z_lookback_days must be >= 10")
+        if not 0 <= self.scale_disp_weight <= 1:
+            raise ConfigError("backtest.scale_disp_weight must be in [0, 1]")
+        if self.scale_vol_target <= 0:
+            raise ConfigError("backtest.scale_vol_target must be > 0")
+        if self.funding_stress < 0:
+            raise ConfigError("backtest.funding_stress must be >= 0")
+        if not 0 <= self.weekend_size_scale <= 1:
+            raise ConfigError("backtest.weekend_size_scale must be in [0, 1]")
         if self.zscore_window_bars < 5:
             raise ConfigError("backtest.zscore_window_bars must be >= 5")
 

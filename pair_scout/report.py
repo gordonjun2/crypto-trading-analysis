@@ -30,6 +30,7 @@ def build_report(
     regime_prob: float | None = None,
     entry_z: float = 1.5,
     stop_z: float = 3.5,
+    sizing_hint: str | None = None,
 ) -> list[str]:
     """Render the report and return it as <=4096-char HTML chunks."""
     lines: list[str] = []
@@ -49,6 +50,8 @@ def build_report(
         lines.append(
             f"🧭 JEV regime read: {_fmt(regime_prob)} ({mood}) — context only, not a gate"
         )
+    if sizing_hint:
+        lines.append(f"⚖️ {escape(sizing_hint)}")
     lines.append("")
 
     enters = [a for a in ranked if a.action == "ENTER"]

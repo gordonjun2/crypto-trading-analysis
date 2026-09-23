@@ -12,7 +12,7 @@ pos=+1 means long Y / short X (entered when z <= -entry), pos=-1 the mirror.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import pandas as pd
@@ -37,6 +37,12 @@ class SimResult:
     max_drawdown: float = 0.0
     hit_rate: float = float("nan")
     n_trades: int = 0
+    gross_returns: pd.Series | None = None  # pre-fee returns (before size scaling)
+    cost_returns: pd.Series | None = None  # fee/slippage drag (before size scaling)
+    funding_returns: pd.Series | None = None  # perp funding paid/received
+    mean_scale: float = 1.0  # mean notional multiplier applied (1.0 = unscaled)
+    positions: pd.Series | None = None  # pos_prev series (for trade re-segmentation)
+    signal: pd.Series | None = None  # entry momentum series (for conviction sizing)
 
 
 def leg_weights(vol_y: float, vol_x: float, sizing: str,
@@ -114,20 +120,23 @@ def _positions_trend(
     entry_allowed: pd.Series | None = None,
     min_entry_i: int = 0,
     cooldown_bars: int = 0,
+    trail_pct: float = 0.0,
 ) -> pd.Series:
     """Long the spread while its momentum is strong; multiple exits.
 
     Entry: absolute (momentum >= enter_level) or adaptive z-score
     (momentum z >= z_entry over z_lookback_bars) AND momentum >= enter_level.
     Exits: momentum fade (<= exit_level), hard time stop (max_hold_bars),
-    adverse spread move (stop_pct on log spread), or a disallowed entry day
-    (regime gate) never OPENS a position.
+    adverse spread move (stop_pct on log spread), a trailing stop
+    (trail_pct below the highest spread since entry; 0 = off), or a
+    disallowed entry day (regime gate) never OPENS a position.
     """
     n = len(momentum)
     pos = 0
     held = 0
     cooldown = 0
     entry_level = float("nan")
+    peak_level = float("nan")
     mom_vals = momentum.to_numpy()
     spread_vals = spread.to_numpy() if spread is not None else None
     if entry_allowed is not None:
@@ -157,8 +166,21 @@ def _positions_trend(
                 and spread_vals[i] - entry_level <= -stop_pct
             ):
                 stopped = True
+            elif (
+                spread_vals is not None
+                and trail_pct > 0
+                and math.isfinite(spread_vals[i])
+            ):
+                if not math.isfinite(peak_level):
+                    peak_level = spread_vals[i]
+                elif spread_vals[i] > peak_level:
+                    peak_level = spread_vals[i]
+                elif peak_level - spread_vals[i] >= trail_pct:
+                    stopped = True
             if stopped:
-                pos, held, entry_level, cooldown = 0, 0, float("nan"), cooldown_bars
+                pos, held = 0, 0
+                entry_level, peak_level = float("nan"), float("nan")
+                cooldown = cooldown_bars
         mv = mom_vals[i]
         if math.isfinite(mv):
             if pos == 0:
@@ -183,8 +205,11 @@ def _positions_trend(
                         if spread_vals is not None and math.isfinite(spread_vals[i])
                         else float("nan")
                     )
+                    peak_level = entry_level
             elif mv <= exit_level:
-                pos, held, entry_level, cooldown = 0, 0, float("nan"), cooldown_bars
+                pos, held = 0, 0
+                entry_level, peak_level = float("nan"), float("nan")
+                cooldown = cooldown_bars
         out[i] = pos
     return pd.Series(out, index=momentum.index)
 
@@ -210,19 +235,30 @@ def simulate_divergence(
     entry_allowed: pd.Series | None = None,
     trade_start: pd.Timestamp | None = None,
     cooldown_bars: int = 0,
+    size_scale: pd.Series | None = None,
+    funding_long: pd.Series | None = None,
+    funding_short: pd.Series | None = None,
+    funding_stress: float = 1.0,
+    spread_trail_pct: float = 0.0,
+    signal_override: pd.Series | None = None,
 ) -> SimResult:
     """Short-horizon divergence book: long the strong leg, short the weak leg.
 
     Signal: mean per-bar change of log(strong) - log(weak) over the signal window,
     optionally skipping the most recent ``momentum_shift_bars`` bars (short-term
-    reversal hedge). Entry is adaptive (momentum z-score) or absolute. Exits:
-    momentum fade, hard time stop, adverse spread stop, regime gate on entries.
-    Weights balance the book's BTC beta to ~0 (beta_balanced) or split equally.
+    reversal hedge) — or an externally supplied ``signal_override`` series (e.g.
+    a funding differential), which replaces the computed momentum entirely.
+    Entry is adaptive (momentum z-score) or absolute. Exits: momentum fade, hard
+    time stop, adverse spread stop, regime gate on entries. Weights balance the
+    book's BTC beta to ~0 (beta_balanced) or split equally.
     """
-    diff = (log_long - log_short).diff()
-    momentum = diff.rolling(signal_window_bars).mean()
-    if momentum_shift_bars > 0:
-        momentum = momentum.shift(momentum_shift_bars)
+    if signal_override is not None:
+        momentum = signal_override.astype(float)
+    else:
+        diff = (log_long - log_short).diff()
+        momentum = diff.rolling(signal_window_bars).mean()
+        if momentum_shift_bars > 0:
+            momentum = momentum.shift(momentum_shift_bars)
     spread = log_long - log_short
     pos = _positions_trend(
         momentum,
@@ -238,6 +274,7 @@ def simulate_divergence(
             spread.index.searchsorted(trade_start) if trade_start is not None else 0
         ),
         cooldown_bars=cooldown_bars,
+        trail_pct=spread_trail_pct,
     )
     if trade_start is not None:
         start_i = spread.index.searchsorted(trade_start)
@@ -250,12 +287,55 @@ def simulate_divergence(
     )
     dll = log_long.diff()
     dls = log_short.diff()
-    gross = pos_prev * (w_long * dll - w_short * dls)
+    # size_scale: continuous notional multiplier (dispersion-scaled sizing);
+    # both PnL and fees scale with notional, so net = (gross - cost) * scale.
+    if size_scale is None:
+        scale = pd.Series(1.0, index=pos_prev.index)
+    else:
+        scale = size_scale.reindex(pos_prev.index).fillna(1.0).astype(float)
+    gross = scale * pos_prev * (w_long * dll - w_short * dls)
     turnover = pos_prev.diff().abs().fillna(pos_prev.abs())
-    cost = turnover * (w_long + w_short) * (fee_bps + slippage_bps) / 1e4
-    net = (gross - cost).dropna()
+    cost = (
+        scale
+        * turnover
+        * (w_long + w_short)
+        * (fee_bps + slippage_bps)
+        / 1e4
+    )
+    # perpetual funding: paid/received by positions held at settlement times
+    if funding_long is not None or funding_short is not None:
+        f_long = (
+            funding_long.reindex(pos_prev.index).fillna(0.0).astype(float)
+            if funding_long is not None
+            else pd.Series(0.0, index=pos_prev.index)
+        )
+        f_short = (
+            funding_short.reindex(pos_prev.index).fillna(0.0).astype(float)
+            if funding_short is not None
+            else pd.Series(0.0, index=pos_prev.index)
+        )
+        # funding COST series (positive = paid by the book): longs pay f>0,
+        # shorts receive it -> cost = w_l*f_long - w_s*f_short
+        funding = (
+            scale
+            * pos_prev
+            * (w_long * f_long - w_short * f_short)
+            * funding_stress
+        )
+    else:
+        funding = pd.Series(0.0, index=pos_prev.index)
+    net = (gross - cost - funding).dropna()
     trades = _segment_trades(net, pos_prev)
-    return _finalize(net, trades, bars_per_year)
+    result = _finalize(net, trades, bars_per_year)
+    return replace(
+        result,
+        gross_returns=gross,
+        cost_returns=cost,
+        funding_returns=funding,
+        mean_scale=float(scale.mean()) if len(scale) else 1.0,
+        positions=pos_prev,
+        signal=momentum,
+    )
 
 
 def simulate_consolidated(

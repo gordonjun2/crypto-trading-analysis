@@ -15,6 +15,7 @@ from pair_scout.jev.regime import live_regime_probability
 from pair_scout.jev.ranker import Assessment, jev_assessment, rank, rule_based_assessment
 from pair_scout.report import build_report
 from pair_scout.screen import DEFAULT_BENCHMARK, ScreenOutput, screen_candidates
+from pair_scout.sizing import live_sizing_hint
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,7 @@ def run_pipeline(cfg: AppConfig, use_jev: bool = True) -> RunResult:
         regime_prob=regime_prob,
         entry_z=cfg.backtest.entry_z,
         stop_z=cfg.backtest.stop_z,
+        sizing_hint=live_sizing_hint(cfg, panel, regime_prob),
     )
     # surface the watch tier count in the log; report lines cover the details
     logger.info(

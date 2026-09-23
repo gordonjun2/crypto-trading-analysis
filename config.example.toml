@@ -71,6 +71,28 @@ z_lookback_days = 30.0
 momentum_shift_hours = 12.0     # skip recent bars (short-term reversal hedge)
 spread_stop_pct = 0.03          # adverse log-spread stop
 reentry_cooldown_hours = 12.0   # no re-entry for 12h after an exit
+# --- dispersion-scaled sizing (continuous risk allocation; walk-forward winner Sep 2026) ---
+# scale = JEV regime size (cached daily P(momentum regime), yesterday's read)
+#         x vol-target size (trailing 3d book vol vs target). Continuous, never a
+#         gate: the book always trades; risk is reallocated toward favorable states.
+# Walk-forward (10x15d folds, net of 5+2bps fees): pooled top-3 OOS Sharpe
+# 0.92 (1x) -> 1.09 (combo), portfolio Sharpe 2.36 -> 2.53, maxDD -6.7% -> -5.4%,
+# mean exposure ~1.0x. See pair_scout/output/sizing_research_*.md.
+size_scaling = "combo"          # off | combo | vol_target | jev_soft | market | efficiency | conviction
+scale_vol_target = 0.20         # annualized book vol target (vol-target component)
+scale_min = 0.5                 # multiplier floor (bounds shared by all components)
+scale_max = 1.5                 # multiplier cap; symmetric around 1.0 keeps ~1x book
+scale_metric = "disp_corr"      # only for size_scaling = "market" (research: no edge)
+scale_slope = 0.3               # z-score steepness (market/efficiency/conviction modes)
+scale_z_lookback_days = 60.0    # trailing window for z-normalization
+scale_disp_weight = 0.5         # market mode: dispersion vs inverse-corr weight
+# perpetual funding is modeled from <data_dir>/funding_rates.json (real Binance
+# history; impact on this book is small: pooled SR 0.92 -> 0.91, keep it on):
+include_funding = true
+funding_stress = 1.0            # stress multiplier on historical funding
+# weekend overlay: thin Sat/Sun liquidity; 0.5x cuts DD -5.4% -> -4.8% and lifts
+# exposure-adjusted return +14.9% -> +15.7% (walk-forward, funding-adjusted)
+weekend_size_scale = 0.5
 
 [eval]
 train_days = 40

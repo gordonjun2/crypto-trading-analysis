@@ -150,11 +150,28 @@ def entry_allowed_series(
     return probs.map(lambda p: bool(p is not None and p >= min_prob)).fillna(False)
 
 
-def live_regime_probability(cfg: AppConfig, panel: Panel, client: JevClient) -> float:
-    """One-shot gate for the live screener (state at the last closed bar)."""
+def live_regime_probability(
+    cfg: AppConfig, panel: Panel, client: JevClient,
+    cache_path: Path = DEFAULT_CACHE,
+) -> float:
+    """One-shot gate for the live screener (state at the last closed bar).
+
+    The reading is persisted to the shared daily cache so the dispersion-scaled
+    sizing (jev_soft/combo) keeps a growing calibration history.
+    """
     state = market_state(panel, panel.index[-1])
     state["metric_reference"] = STATE_REFERENCE
     response = client._client.system_one(
         state=state, questions={"regime_gate": REGIME_QUESTION}
     )
-    return _prob_from_response(response)
+    prob = _prob_from_response(response)
+    try:
+        cache: dict[str, float] = {}
+        if cache_path.exists():
+            cache = json.loads(cache_path.read_text())
+        cache[str(state["as_of"])] = prob
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(cache, indent=0))
+    except OSError as exc:  # cache is an optimization; never fail the run
+        logger.warning("could not persist regime cache: %s", exc)
+    return prob

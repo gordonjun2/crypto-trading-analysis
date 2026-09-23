@@ -60,6 +60,7 @@ class PairOutcome:
     n_trades: int
     train_pvalue: float
     test_pvalue: float
+    mean_exposure: float = 1.0  # mean notional multiplier (1.0 = unscaled)
 
 
 @dataclass
@@ -134,62 +135,107 @@ class EvaluationReport:
         return "\n".join(lines)
 
 
+def _simulate_divergence_result(
+    panel_test: Panel, c, sizing: str, cfg: AppConfig,
+    warmup_closes: dict[str, pd.Series] | None = None,
+    entry_allowed: pd.Series | None = None,
+    size_scale: pd.Series | None = None,
+    funding: dict[str, pd.Series] | None = None,
+) -> SimResult:
+    """Raw divergence simulation for one candidate (shared by eval + research)."""
+    bars_per_year = panel_test.bars_per_day * 365
+
+    def leg_series(asset: str) -> pd.Series:
+        test_close = panel_test.frames[asset]["Close"]
+        if warmup_closes and asset in warmup_closes:
+            return pd.concat([warmup_closes[asset], test_close])
+        return test_close
+
+    log_long = np.log(leg_series(c.asset_long))
+    log_short = np.log(leg_series(c.asset_short))
+    trade_start = (
+        panel_test.index[0] if warmup_closes and c.asset_long in warmup_closes
+        else None
+    )
+    window = max(int(cfg.backtest.signal_window_days * panel_test.bars_per_day), 2)
+    # "vol_balanced" has no meaning without the spread convention here; the
+    # risk-balanced sizing for a divergence book is beta_balanced.
+    sizing_eff = "beta_balanced" if sizing == "vol_balanced" else sizing
+    max_hold = (
+        int(cfg.backtest.max_hold_days * panel_test.bars_per_day)
+        if cfg.backtest.max_hold_days > 0 else None
+    )
+    f_long = f_short = None
+    if cfg.backtest.include_funding and funding:
+        from pair_scout.data.funding import funding_rate_series
+
+        bars = log_long.index
+        f_long = funding_rate_series(c.asset_long, funding, bars)
+        f_short = funding_rate_series(c.asset_short, funding, bars)
+    return simulate_divergence(
+        log_long,
+        log_short,
+        c.beta_long,
+        c.beta_short,
+        sizing=sizing_eff,
+        signal_window_bars=window,
+        entry_mom_per_bar=cfg.backtest.divergence_entry_mom / window,
+        exit_mom_per_bar=cfg.backtest.divergence_exit_mom / window,
+        fee_bps=cfg.backtest.fee_bps,
+        slippage_bps=cfg.backtest.slippage_bps,
+        bars_per_year=bars_per_year,
+        max_hold_bars=max_hold,
+        trade_start=trade_start,
+        entry_mode=cfg.backtest.entry_mode,
+        z_entry=cfg.backtest.z_entry,
+        z_lookback_bars=max(
+            int(cfg.backtest.z_lookback_days * panel_test.bars_per_day), 5
+        ),
+        momentum_shift_bars=int(
+            cfg.backtest.momentum_shift_hours * panel_test.bars_per_day / 24
+        ),
+        spread_stop_pct=cfg.backtest.spread_stop_pct,
+        entry_allowed=entry_allowed,
+        cooldown_bars=int(
+            cfg.backtest.reentry_cooldown_hours * panel_test.bars_per_day / 24
+        ),
+        size_scale=size_scale,
+        funding_long=f_long,
+        funding_short=f_short,
+        funding_stress=cfg.backtest.funding_stress,
+        spread_trail_pct=cfg.backtest.spread_trail_pct,
+    )
+
+
 def _simulate_candidate(
     panel_test: Panel, c, sizing: str, cfg: AppConfig, arm: str, score: float,
     warmup_closes: dict[str, pd.Series] | None = None,
     entry_allowed: pd.Series | None = None,
+    size_scale: pd.Series | None = None,
+    gates: dict[str, float] | None = None,
+    funding: dict[str, pd.Series] | None = None,
 ) -> PairOutcome:
     """Simulate a screened candidate on the test panel, per its strategy."""
     bars_per_year = panel_test.bars_per_day * 365
     if c.strategy == "divergence":
-        def leg_series(asset: str) -> pd.Series:
-            test_close = panel_test.frames[asset]["Close"]
-            if warmup_closes and asset in warmup_closes:
-                return pd.concat([warmup_closes[asset], test_close])
-            return test_close
+        result = _simulate_divergence_result(
+            panel_test, c, sizing, cfg, warmup_closes, entry_allowed,
+            size_scale=size_scale
+            if cfg.backtest.size_scaling in ("market", "jev_soft") else None,
+            funding=funding,
+        )
+        if cfg.backtest.size_scaling in (
+            "vol_target", "efficiency", "conviction", "combo"
+        ):
+            from pair_scout.sizing import apply_scale_to_result, scale_for_config
 
-        log_long = np.log(leg_series(c.asset_long))
-        log_short = np.log(leg_series(c.asset_short))
-        trade_start = (
-            panel_test.index[0] if warmup_closes and c.asset_long in warmup_closes
-            else None
-        )
-        window = max(int(cfg.backtest.signal_window_days * panel_test.bars_per_day), 2)
-        # "vol_balanced" has no meaning without the spread convention here; the
-        # risk-balanced sizing for a divergence book is beta_balanced.
-        sizing_eff = "beta_balanced" if sizing == "vol_balanced" else sizing
-        max_hold = (
-            int(cfg.backtest.max_hold_days * panel_test.bars_per_day)
-            if cfg.backtest.max_hold_days > 0 else None
-        )
-        result = simulate_divergence(
-            log_long,
-            log_short,
-            c.beta_long,
-            c.beta_short,
-            sizing=sizing_eff,
-            signal_window_bars=window,
-            entry_mom_per_bar=cfg.backtest.divergence_entry_mom / window,
-            exit_mom_per_bar=cfg.backtest.divergence_exit_mom / window,
-            fee_bps=cfg.backtest.fee_bps,
-            slippage_bps=cfg.backtest.slippage_bps,
-            bars_per_year=bars_per_year,
-            max_hold_bars=max_hold,
-            trade_start=trade_start,
-            entry_mode=cfg.backtest.entry_mode,
-            z_entry=cfg.backtest.z_entry,
-            z_lookback_bars=max(
-                int(cfg.backtest.z_lookback_days * panel_test.bars_per_day), 5
-            ),
-            momentum_shift_bars=int(
-                cfg.backtest.momentum_shift_hours * panel_test.bars_per_day / 24
-            ),
-            spread_stop_pct=cfg.backtest.spread_stop_pct,
-            entry_allowed=entry_allowed,
-            cooldown_bars=int(
-                cfg.backtest.reentry_cooldown_hours * panel_test.bars_per_day / 24
-            ),
-        )
+            scale = scale_for_config(
+                panel_test, cfg, result.bar_returns.index,
+                candidate_returns=result.bar_returns,
+                candidate_signal=result.signal,
+                gates=gates,
+            )
+            result = apply_scale_to_result(result, scale, bars_per_year)
         return PairOutcome(
             key=f"LONG {c.asset_long} / SHORT {c.asset_short}",
             arm=arm,
@@ -201,6 +247,7 @@ def _simulate_candidate(
             n_trades=result.n_trades,
             train_pvalue=c.pvalue,
             test_pvalue=float("nan"),  # EG persistence is not a divergence metric
+            mean_exposure=result.mean_scale,
         )
 
     y_a, x_a = c.spread_y_asset or c.asset_short, c.spread_x_asset or c.asset_long
@@ -296,6 +343,62 @@ def run_evaluation(
     spearman_data: dict[str, tuple[list[float], list[float]]] = {}
     persist_pass = persist_total = 0
 
+    funding: dict[str, pd.Series] | None = None
+    if cfg.backtest.include_funding:
+        from pair_scout.data.funding import load_funding
+        from pathlib import Path as _P
+
+        fpath = _P(cfg.data.data_dir) / "funding_rates.json"
+        funding = load_funding(fpath)
+        if funding:
+            logger.info(
+                "funding modeled: %d symbols from %s (stress x%.1f)",
+                len(funding), fpath, cfg.backtest.funding_stress,
+            )
+        else:
+            logger.warning("funding cache missing at %s — funding NOT modeled", fpath)
+
+    # dispersion-scaled sizing: per-bar multiplier from the FULL panel (causal:
+    # each day's value uses only strictly-past data; see sizing.py)
+    scale_full: pd.Series | None = None
+    gates: dict[str, float] | None = None
+    if cfg.backtest.size_scaling == "market":
+        from pair_scout.sizing import market_daily_metrics, scale_for_config
+
+        metrics = market_daily_metrics(panel)
+        scale_full = scale_for_config(panel, cfg, panel.index, metrics=metrics)
+        logger.info(
+            "size scaling: %s/%s, mean exposure %.2f",
+            cfg.backtest.size_scaling, cfg.backtest.scale_metric,
+            float(scale_full.mean()),
+        )
+    elif cfg.backtest.size_scaling in ("jev_soft", "combo"):
+        import json as _json
+        from pathlib import Path as _Path
+
+        from pair_scout.jev.regime import DEFAULT_CACHE
+        from pair_scout.sizing import ScaleSpec, expand_to_bars, gates_scale_series
+
+        if DEFAULT_CACHE.exists():
+            gates = _json.loads(DEFAULT_CACHE.read_text())
+        if gates:
+            spec = ScaleSpec(
+                mode="jev_soft",
+                scale_min=cfg.backtest.scale_min,
+                scale_max=cfg.backtest.scale_max,
+            )
+            scale_full = expand_to_bars(gates_scale_series(gates, panel.index, spec),
+                                        panel.index)
+            logger.info(
+                "size scaling: %s, mean gate size %.2f (%d cached days)",
+                cfg.backtest.size_scaling, float(scale_full.mean()), len(gates),
+            )
+        else:
+            logger.warning(
+                "size scaling %s requested but %s is missing — running unscaled",
+                cfg.backtest.size_scaling, DEFAULT_CACHE,
+            )
+
     for fold_no, s0, s1, t0, t1 in folds:
         train = slice_days(panel, s0, s1)
         test = slice_days(panel, t0, t1)
@@ -348,6 +451,9 @@ def run_evaluation(
                     test, c, sizing, cfg, "consolidated",
                     rule_based_assessment(c).composite,
                     warmup_closes=warmup_closes,
+                    size_scale=scale_full,
+                    gates=gates,
+                    funding=funding,
                 )
                 c.test_pvalue_cache = outcome.test_pvalue
                 outcomes2.append(outcome)
@@ -382,7 +488,10 @@ def run_evaluation(
                 outcome = _simulate_candidate(test, c, "vol_balanced", cfg,
                                               "consolidated+jev", a.composite,
                                               warmup_closes=warmup_closes,
-                                              entry_allowed=allowed)
+                                              entry_allowed=allowed,
+                                              size_scale=scale_full,
+                                              gates=gates,
+                                              funding=funding)
                 c.test_pvalue_cache = outcome.test_pvalue
                 outcomes3.append(outcome)
             outcomes3.sort(key=lambda o: o.score, reverse=True)
