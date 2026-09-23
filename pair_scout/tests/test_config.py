@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from dataclasses import replace
 
 from pair_scout.config import (
     AppConfig,
@@ -31,7 +32,7 @@ class TestConfig:
             (DataConfig, dict(max_nan_fraction=1.5)),
             (JevConfig, dict(weight_reversion=0.9)),  # weights no longer sum to 1
             (JevConfig, dict(min_composite=2.0)),
-            (BacktestConfig, dict(entry_z=0.1)),  # entry must exceed exit
+            (BacktestConfig, dict(divergence_entry_mom=-1.0)),  # entry must exceed exit
         ],
     )
     def test_invalid_values_rejected(self, cls, bad):
@@ -118,6 +119,7 @@ class TestScreenIntegration:
         }
         panel = Panel(frames=frames, bars_per_day=24)
         cfg = AppConfig()
+        cfg = replace(cfg, screen=replace(cfg.screen, mode="cointegration"))
         out = screen_candidates(panel, cfg)
         assert len(out.candidates) == 3
         keys = {c.key for c in out.passed}

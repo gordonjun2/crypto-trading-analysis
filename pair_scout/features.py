@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 
@@ -12,33 +13,38 @@ class PairCandidate:
     asset_long: str
     asset_short: str
     direction_basis: str
-    # cointegration
-    pvalue: float
-    adf_stat: float
-    hedge_ratio: float
-    spread_zscore: float
-    half_life_bars: float
-    half_life_days: float
-    hurst: float
+    strategy: str = "cointegration"  # "cointegration" | "divergence"
+    # cointegration (NaN for divergence candidates)
+    pvalue: float = float("nan")
+    adf_stat: float = float("nan")
+    hedge_ratio: float = float("nan")
+    spread_zscore: float = float("nan")
+    half_life_bars: float = float("nan")
+    half_life_days: float = float("nan")
+    hurst: float = float("nan")
     # correlation / divergence
-    return_correlation: float
-    momentum_long: float
-    momentum_short: float
+    return_correlation: float = float("nan")
+    momentum_long: float = float("nan")
+    momentum_short: float = float("nan")
     # liquidity / volatility / risk
-    avg_daily_volume_long: float
-    avg_daily_volume_short: float
-    annualized_vol_long: float
-    annualized_vol_short: float
-    atr_pct_long: float
-    atr_pct_short: float
-    vol_ratio: float
-    skewness_long: float
-    skewness_short: float
-    long_notional_share: float
+    avg_daily_volume_long: float = float("nan")
+    avg_daily_volume_short: float = float("nan")
+    annualized_vol_long: float = float("nan")
+    annualized_vol_short: float = float("nan")
+    atr_pct_long: float = float("nan")
+    atr_pct_short: float = float("nan")
+    vol_ratio: float = float("nan")
+    skewness_long: float = float("nan")
+    skewness_short: float = float("nan")
+    long_notional_share: float = float("nan")
     choppiness_long: float = float("nan")
     choppiness_short: float = float("nan")
     beta_long: float = float("nan")
     beta_short: float = float("nan")
+    momentum_spread: float = float("nan")  # rank-window momentum, long minus short
+    signal_momentum: float = float("nan")  # signal-window momentum of the pair spread
+    weight_long: float = float("nan")  # sizing weight of the long leg (sums to 1)
+    combo_beta: float = float("nan")  # BTC beta of the balanced long-short book
     history_bars: int = 0
     history_days: int = 0
     # outcome fields
@@ -86,8 +92,14 @@ METRIC_REFERENCE: dict[str, str] = {
         "co-movement with the market."
     ),
     "momentum": (
-        "Trailing return of each leg; for divergence setups we long the stronger and "
-        "short the weaker asset."
+        "Trailing return of each leg. For divergence setups we long the stronger "
+        "token and short the weaker one; momentum_spread is that gap over the "
+        "ranking window and signal_momentum is the pair spread's recent momentum."
+    ),
+    "beta_vs_btc / combo_beta": (
+        "Sensitivity of each leg to bitcoin. The leg weights are chosen so the "
+        "long-short book's combined beta (combo_beta) is ~0: the trade is a bet on "
+        "relative strength, not on market direction. |combo_beta| near 0 is best."
     ),
     "avg_daily_volume_usd": (
         "Average quote-volume per day over the trailing week; lower bound for "
@@ -112,6 +124,13 @@ METRIC_REFERENCE: dict[str, str] = {
 def build_jev_state(c: PairCandidate) -> dict:
     """JSON state for one JEV request (plan §4.2)."""
     return {
+        "strategy": (
+            "momentum divergence: long the stronger token, short the weaker one, "
+            "leg weights beta-balanced so the book has ~zero bitcoin exposure"
+            if c.strategy == "divergence"
+            else "statistical mean reversion: short the rich leg, long the cheap leg "
+            "when the cointegrated spread is stretched"
+        ),
         "pair": {
             "asset_long": c.asset_long,
             "asset_short": c.asset_short,
@@ -128,6 +147,8 @@ def build_jev_state(c: PairCandidate) -> dict:
                 "return_correlation_90d": c.return_correlation,
                 "momentum_30d_long": c.momentum_long,
                 "momentum_30d_short": c.momentum_short,
+                "momentum_spread_rank_window": c.momentum_spread,
+                "signal_momentum": c.signal_momentum,
                 "avg_daily_volume_long": c.avg_daily_volume_long,
                 "avg_daily_volume_short": c.avg_daily_volume_short,
                 "annualized_vol_long": c.annualized_vol_long,
@@ -139,6 +160,8 @@ def build_jev_state(c: PairCandidate) -> dict:
                 "skewness_short": c.skewness_short,
                 "beta_vs_btc_long": c.beta_long,
                 "beta_vs_btc_short": c.beta_short,
+                "weight_long": c.weight_long,
+                "combo_beta": c.combo_beta,
                 "history_days": c.history_days,
             }
         ),
@@ -150,7 +173,8 @@ def _round_floats(obj: dict, ndigits: int = 4) -> dict:
     out = {}
     for k, v in obj.items():
         if isinstance(v, float):
-            out[k] = round(v, ndigits)
+            # JSON has no NaN; non-finite metrics are simply omitted from state
+            out[k] = round(v, ndigits) if math.isfinite(v) else None
         else:
             out[k] = v
     return out

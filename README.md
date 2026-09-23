@@ -225,13 +225,20 @@ This notebook aims to provide insights into price fluctuations and helping trade
 ### **PairScout — Consolidated Screener (Python package)**
 
 `pair_scout/` consolidates the five pair-trading notebooks into one maintained,
-leakage-safe application: it screens all pair combinations of the top-N liquid
-Binance perps (Engle-Granger on log prices, both orientations), applies hard
-risk/liquidity filters, ranks surviving candidates with the **JEV** classifier
-(TypeSafe System One), validates the approach with a 3-arm walk-forward
-evaluation, and delivers a Telegram report. **Analysis only — no order
-placement.** See `IMPLEMENTATION_PLAN.md` for the full design, the notebook
-bugs it fixes, and the evaluation methodology + stated limitations.
+leakage-safe application with two strategy modes:
+
+- **divergence** (default, per the stated goal): rank the universe by trailing
+  momentum, **long the stronger ("good") tokens and short the weaker ("bad") ones**,
+  with leg weights chosen so the book's **beta to BTC is balanced to ~0**
+  (inverse-beta weights) — a bet on relative strength, not market direction.
+  Trend-following entry: spread momentum (7d) above threshold; exit when it fades.
+- **cointegration**: Engle-Granger on log prices (both orientations), rolling
+  z-score mean reversion.
+
+Both modes share hard risk/liquidity filters, JEV (TypeSafe System One) ranking
+with strategy-specific rubrics, a 3-arm walk-forward evaluation, and Telegram
+delivery. **Analysis only — no order placement.** See `IMPLEMENTATION_PLAN.md`
+for the full design, the notebook bugs fixed, and the evaluation methodology.
 
 Setup (secrets live in `.env` only — see `.env.example`):
 
@@ -254,9 +261,27 @@ Daily server cron example (after the 00:00 UTC candle closes):
 15 0 * * * cd /path/to/crypto-trading-analysis && ./venv/bin/python -m pair_scout run --send >> pair_scout.log 2>&1
 ```
 
-Evaluation conclusion (2025-07-02 → 2025-09-02 local data): the original
-notebook logic's attractive backtest is reproduced only when its look-ahead and
-in-sample selection are kept; on honest train/test splits cointegration
-persistence is ~3% and fee-aware performance is negative. ~62 days of one
-regime, one exchange, funding rates not modeled — directional evidence, not
-proof of profitability.
+Iteration log (walk-forward, net of 5 bps fee + 2 bps slippage per side/leg):
+
+- **Baseline** (2025-07→09, 62d): mean-reversion arm −5.13 SR; divergence mode
+  won fold 1 (−0.99) but collapsed in the drawdown fold.
+- **Iteration 1 — short-horizon redesign** on 6 months of 1h data (658 pairs
+  refreshed, rolling 15-day walk-forward folds): matched top-K-strong vs
+  bottom-K-weak 1-1 books, adaptive z-score momentum entry (30d distribution),
+  12h momentum skip (short-term reversal hedge), 3% spread stop, hard time stop,
+  12h re-entry cooldown. Parameter peak: rank 7d / signal 2d / z≥1.0 / hold ≤1d.
+  Result: pooled top-3 OOS Sharpe **0.92**, precision@3 **0.55**, 6/10 folds
+  positive. Neighboring configs 0.8-0.9 (genuine peak, not a lone spike);
+  risk-adjusted ranking, 14d z-lookback and 2% stops all tested worse.
+- **Iteration 2 — JEV regime gate (daily Noul, 150 days scored): FAILED
+  validation** — it blocked good folds more than bad ones (SR 0.17 vs 0.81).
+  Kept as context-only in the live report ("JEV regime read"), gate off by
+  default. Reported honestly rather than shipped as fake alpha.
+- **Final**: with the improved engine, JEV candidate ranking now adds a small
+  measurable lift: JEV arm pooled SR 0.95 vs 0.92 rule-only, Spearman 0.32 vs
+  0.28, and it avoided a −3.8 book in fold 9 (+4.5). Modest, sample-size
+  caveat applies, but directionally positive.
+
+Stated limitation: ~6 months, one exchange, funding rates of the short perp leg
+not modeled, parameter grid deliberately small but still selection-prone.
+Directional evidence, not proof of profitability.

@@ -72,25 +72,97 @@ EXECUTABILITY_RUBRIC = [
     },
 ]
 
-QUESTIONS: dict[str, Score | Noul] = {
+DIRECTION_NOUL = Noul(
+    criteria={
+        "true": "Given the metrics, the proposed long/short assignment is the "
+        "consistent one (mean reversion: sign of z-score vs the spread convention "
+        "log(short-leg) - hedge_ratio*log(long-leg); divergence: the long leg has "
+        "the stronger momentum and the beta-balanced weights are coherent).",
+        "false": "The proposed direction fights the data or cannot be determined.",
+    }
+)
+
+RED_FLAG_NOUL = Noul(
+    criteria={
+        "true": "Something in the metrics should veto trading this pair: evidence "
+        "barely below threshold, extreme volatility or vol_ratio, crash-prone skew, "
+        "very short history, degenerate hedge or beta, momentum that is pure market "
+        "beta instead of idiosyncratic divergence.",
+        "false": "No metric alone looks disqualifying.",
+    }
+)
+
+COINTEGRATION_QUESTIONS: dict[str, Score | Noul] = {
     "reversion_quality": Score(criteria=REVERSION_RUBRIC),
     "entry_attractiveness": Score(criteria=ENTRY_RUBRIC),
     "executability": Score(criteria=EXECUTABILITY_RUBRIC),
-    "direction_consistent": Noul(
-        criteria={
-            "true": "Given the metrics (sign of z-score vs the spread convention "
-            "log(short-leg) - hedge_ratio*log(long-leg)), the proposed long/short "
-            "assignment is the reversion-consistent one.",
-            "false": "The proposed direction fights the relationship or cannot be "
-            "determined from the data.",
-        }
-    ),
-    "red_flag": Noul(
-        criteria={
-            "true": "Something in the metrics should veto trading this pair: p-value "
-            "barely below threshold, extreme volatility or vol_ratio, crash-prone "
-            "skew, very short history, degenerate hedge ratio.",
-            "false": "No metric alone looks disqualifying.",
-        }
-    ),
+    "direction_consistent": DIRECTION_NOUL,
+    "red_flag": RED_FLAG_NOUL,
 }
+
+DIVERGENCE_QUESTIONS: dict[str, Score | Noul] = {
+    "reversion_quality": Score(
+        criteria=[
+            {
+                "what": "0 — No tradeable divergence: the momentum gap is tiny or "
+                "fully explained by market beta; the pair is essentially one bet on "
+                "bitcoin.",
+                "examples": ["momentum spread 3%, return correlation 0.97"],
+            },
+            {
+                "what": "1 — Weak divergence: gap exists but modest, legs highly "
+                "correlated, or one leg's beta is too small to balance.",
+                "examples": ["momentum spread 6%, correlation 0.9"],
+            },
+            {
+                "what": "2 — Solid divergence: clear idiosyncratic gap over the "
+                "ranking window, moderate correlation, both legs hedgeable.",
+                "examples": ["momentum spread 15%, correlation 0.6"],
+            },
+            {
+                "what": "3 — Strong divergence: large gap, fresh signal momentum, "
+                "low correlation between legs, clean beta balancing, liquid legs.",
+                "examples": ["momentum spread 30%, correlation 0.3, signal rising"],
+            },
+        ]
+    ),
+    "entry_attractiveness": Score(
+        criteria=[
+            {
+                "what": "0 — Late entry: the divergence already happened and is "
+                "fading; signal momentum near zero or negative.",
+                "examples": ["7d spread momentum ~0 after a 40% gap"],
+            },
+            {
+                "what": "1 — Marginal: gap barely above the minimum, signal "
+                "momentum flat.",
+                "examples": ["spread +5.5%, 7d momentum +0.5%"],
+            },
+            {
+                "what": "2 — Good: healthy gap with still-positive spread momentum.",
+                "examples": ["spread +12%, 7d momentum +3%"],
+            },
+            {
+                "what": "3 — Excellent: large gap, strong and accelerating signal "
+                "momentum, no exhaustion signs.",
+                "examples": ["spread +25%, 7d momentum +6%, accelerating"],
+            },
+        ]
+    ),
+    "executability": Score(criteria=EXECUTABILITY_RUBRIC),
+    "direction_consistent": DIRECTION_NOUL,
+    "red_flag": RED_FLAG_NOUL,
+}
+
+_QUESTIONS_BY_STRATEGY = {
+    "cointegration": COINTEGRATION_QUESTIONS,
+    "divergence": DIVERGENCE_QUESTIONS,
+}
+
+# Default kept for backward compatibility with the original mean-reversion flow.
+QUESTIONS = COINTEGRATION_QUESTIONS
+
+
+def build_questions(strategy: str) -> dict[str, Score | Noul]:
+    """Strategy-aware question set (same IDs and types, strategy-specific rubrics)."""
+    return _QUESTIONS_BY_STRATEGY.get(strategy, COINTEGRATION_QUESTIONS)

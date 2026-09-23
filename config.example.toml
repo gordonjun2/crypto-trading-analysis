@@ -11,14 +11,26 @@ max_nan_fraction = 0.02    # pairs with more gaps are dropped (never backfilled)
 trailing_volume_days = 7
 
 [screen]
-pvalue_max = 0.05          # Engle-Granger p-value cap (train window)
+mode = "divergence"        # "divergence" (long strong/short weak, beta-balanced) | "cointegration" (mean reversion)
+pvalue_max = 0.05          # Engle-Granger p-value cap (cointegration mode, train window)
 half_life_min_bars = 4
 half_life_max_days = 30.0
-entry_z = 1.5              # |rolling spread z| required for an actionable setup
+entry_z = 1.5              # |rolling spread z| required for an actionable setup (cointegration)
 watch_z = 1.0              # near-miss tier: everything else OK but |z| < entry_z
 zscore_window_bars = 15    # matches the cointegration notebook's window
 corr_lookback_days = 30.0
 momentum_lookback_days = 30.0
+# divergence mode
+momentum_rank_days = 7.0   # window that defines "good" vs "bad" tokens
+pairing = "matched"        # top-K strong vs bottom-K weak, 1-1 books
+matched_depth = 8
+rank_score = "raw"         # "raw" momentum beat "risk_adjusted" in walk-forward
+min_leg_ann_vol = 0.20     # flat legs cannot pay fees
+min_momentum_spread = 0.05 # required divergence between the legs (5% over 14d)
+max_return_corr = 0.95     # near-identical pairs are not divergence trades
+beta_min = 0.15            # legs need meaningful BTC beta for balancing
+combo_beta_max = 0.15      # residual market exposure cap after balancing
+# shared risk filters
 min_dollar_volume = 1000000.0   # avg quote volume per day, trailing week, both legs
 atr_pct_max = 15.0
 skew_abs_max = 4.0
@@ -33,6 +45,8 @@ min_composite = 0.60       # starting values; calibrate on the evaluation fold
 min_confidence = 0.40
 min_direction_noul = 0.60
 max_red_flag_noul = 0.50
+regime_gate = false        # JEV daily regime gate failed OOS validation; context-only live
+regime_gate_min = 0.60
 max_workers = 4
 top_k = 5
 max_candidates = 12        # JEV request cap per run (cost/latency control)
@@ -42,11 +56,21 @@ max_retries = 4
 [backtest]
 fee_bps = 5.0              # per side per leg
 slippage_bps = 2.0
-entry_z = 1.5
+entry_z = 1.5              # cointegration mode
 exit_z = 0.5
 stop_z = 3.5
 zscore_window_bars = 15
-sizing = "vol_balanced"    # "vol_balanced" | "equal"
+sizing = "beta_balanced"   # "beta_balanced" (combo BTC beta ~0) | "vol_balanced" | "equal"
+divergence_entry_mom = 0.01     # absolute momentum floor; the adaptive z-gate binds first
+divergence_exit_mom = 0.0       # exit when spread momentum <= 0
+signal_window_days = 2.0        # momentum window used by the divergence signal
+max_hold_days = 1.0             # hard time stop (few-day mandate); 0 = unlimited
+entry_mode = "zscore"           # adaptive entry: momentum z vs its 30d distribution
+z_entry = 1.0
+z_lookback_days = 30.0
+momentum_shift_hours = 12.0     # skip recent bars (short-term reversal hedge)
+spread_stop_pct = 0.03          # adverse log-spread stop
+reentry_cooldown_hours = 12.0   # no re-entry for 12h after an exit
 
 [eval]
 train_days = 40

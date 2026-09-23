@@ -43,16 +43,27 @@ def composite_score(answers: JevAnswerSet, cfg: JevConfig) -> float:
     )
 
 
+def _clip01(v: float) -> float:
+    if v != v or v < 0:
+        return 0.0
+    return min(v, 1.0)
+
+
 def rule_based_score(c: PairCandidate) -> float:
     """Transparent statistical ranking used when JEV is unavailable or disabled."""
+    exec_score = _clip01(1.0 - (c.vol_ratio - 1.0) / 3.0)
+    if c.strategy == "divergence":
+        mom_score = _clip01(c.momentum_spread / 0.25)
+        beta_score = _clip01(1.0 - abs(c.combo_beta) / 0.15)
+        corr_score = _clip01(1.0 - c.return_correlation) if c.return_correlation == c.return_correlation else 0.0
+        return 0.45 * mom_score + 0.20 * beta_score + 0.15 * corr_score + 0.20 * exec_score
     p_score = max(0.0, 1.0 - min(c.pvalue / 0.10, 1.0))
     hl = c.half_life_days
     if hl != hl or hl <= 0:  # NaN or non-positive
         hl_score = 0.0
     else:
         hl_score = max(0.0, 1.0 - abs(hl - 5.0) / 5.0)  # peak at 5 days, 0 at 0/10+
-    z_score = max(0.0, min(1.0, (abs(c.spread_zscore) - 1.5) / 1.5))
-    exec_score = max(0.0, 1.0 - (c.vol_ratio - 1.0) / 3.0) if c.vol_ratio == c.vol_ratio else 0.0
+    z_score = _clip01((abs(c.spread_zscore) - 1.5) / 1.5)
     return 0.40 * p_score + 0.25 * hl_score + 0.20 * z_score + 0.15 * exec_score
 
 
@@ -100,11 +111,11 @@ def jev_assessment(c: PairCandidate, answers: JevAnswerSet, cfg: JevConfig) -> A
     )
 
 
-def rule_based_assessment(c: PairCandidate) -> Assessment:
+def rule_based_assessment(c: PairCandidate, note: str | None = None) -> Assessment:
     if c.watch_tier:
         reason = "near-miss: " + "; ".join(c.filter_reasons)
     else:
-        reason = "rule-based statistical score (JEV unavailable/disabled)"
+        reason = note or "rule-based statistical score (JEV unavailable/disabled)"
     return Assessment(
         candidate=c,
         action="WATCH",  # rule-based scores never auto-ENTER

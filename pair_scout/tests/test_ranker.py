@@ -21,6 +21,7 @@ def make_candidate(**overrides) -> PairCandidate:
         asset_long="AAAUSDT",
         asset_short="BBBUSDT",
         direction_basis="z-score sign",
+        strategy="cointegration",
         pvalue=0.004,
         adf_stat=-4.0,
         hedge_ratio=1.5,

@@ -17,7 +17,7 @@ from typesafe_sdk import (
 
 from pair_scout.config import AppConfig
 from pair_scout.features import PairCandidate, build_jev_state
-from pair_scout.jev.questions import QUESTIONS
+from pair_scout.jev.questions import build_questions
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class JevClient:
         state = build_jev_state(c)
         try:
             response: SystemOneResponse = self._client.system_one(
-                state=state, questions=QUESTIONS
+                state=state, questions=build_questions(c.strategy)
             )
         except TypeSafeAPIError as exc:  # rate limit/timeout/auth after SDK retries
             raise JevUnavailable(f"{type(exc).__name__}: {exc}") from exc

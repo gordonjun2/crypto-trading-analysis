@@ -1,0 +1,47 @@
+# PairScout walk-forward evaluation
+
+Generated: 2026-09-22 16:44 UTC
+
+## Per-fold results
+
+| Fold | Mode | Arm | Sizing | Tested | Mean Sharpe (top-K) | Precision@K | Best pick |
+|---|---|---|---|---|---|---|---|
+| 1 | divergence | 1-notebook | equal | 6 | 4.81 | 1.00 | LONG ONDOUSDT / SHORT 1000PEPEUSDT (SR 6.66) |
+| 1 | divergence | 2-consolidated | vol_balanced | 2 | 0.15 | 0.50 | LONG NEARUSDT / SHORT ENAUSDT (SR -2.22) |
+| 1 | divergence | 2-consolidated | equal | 2 | 0.34 | 0.50 | LONG NEARUSDT / SHORT ENAUSDT (SR -2.57) |
+| 2 | divergence | 1-notebook | equal | 6 | 5.19 | 1.00 | LONG ADAUSDT / SHORT BRUSDT (SR 5.95) |
+| 2 | divergence | 2-consolidated | vol_balanced | 6 | 3.02 | 0.67 | LONG SUIUSDT / SHORT DOGEUSDT (SR 7.80) |
+| 2 | divergence | 2-consolidated | equal | 6 | 3.03 | 0.67 | LONG SUIUSDT / SHORT DOGEUSDT (SR 7.89) |
+| 3 | divergence | 1-notebook | equal | 5 | 3.07 | 1.00 | LONG ADAUSDT / SHORT 1000PEPEUSDT (SR 1.25) |
+| 3 | divergence | 2-consolidated | vol_balanced | 6 | 7.57 | 1.00 | LONG HYPEUSDT / SHORT ARBUSDT (SR 9.86) |
+| 3 | divergence | 2-consolidated | equal | 6 | 7.03 | 1.00 | LONG HYPEUSDT / SHORT ARBUSDT (SR 10.21) |
+| 4 | divergence | 1-notebook | equal | 6 | 3.01 | 1.00 | LONG BNBUSDT / SHORT PUMPUSDT (SR 1.63) |
+| 4 | divergence | 2-consolidated | vol_balanced | 4 | -3.53 | 0.00 | LONG WLDUSDT / SHORT ZECUSDT (SR 0.00) |
+| 4 | divergence | 2-consolidated | equal | 4 | -3.82 | 0.00 | LONG WLDUSDT / SHORT ZECUSDT (SR 0.00) |
+| 5 | divergence | 1-notebook | equal | 6 | 8.05 | 1.00 | LONG 龙虾USDT / SHORT GUSDT (SR 9.07) |
+| 5 | divergence | 2-consolidated | vol_balanced | 4 | -0.44 | 0.33 | LONG BNBUSDT / SHORT HYPEUSDT (SR 0.00) |
+| 5 | divergence | 2-consolidated | equal | 4 | -0.60 | 0.33 | LONG BNBUSDT / SHORT HYPEUSDT (SR 0.00) |
+| 6 | divergence | 1-notebook | equal | 6 | 4.91 | 1.00 | LONG PUMPUSDT / SHORT 龙虾USDT (SR 7.68) |
+| 6 | divergence | 2-consolidated | vol_balanced | 4 | -3.18 | 0.00 | LONG ZECUSDT / SHORT TRUMPUSDT (SR -4.74) |
+| 6 | divergence | 2-consolidated | equal | 4 | -3.25 | 0.00 | LONG ZECUSDT / SHORT TRUMPUSDT (SR -5.03) |
+| 7 | divergence | 1-notebook | equal | 6 | 1.25 | 0.67 | LONG DOGEUSDT / SHORT WLDUSDT (SR -0.87) |
+| 7 | divergence | 2-consolidated | vol_balanced | 5 | 3.22 | 0.33 | LONG AKEUSDT / SHORT ZECUSDT (SR 0.00) |
+| 7 | divergence | 2-consolidated | equal | 5 | 3.18 | 0.33 | LONG AKEUSDT / SHORT ZECUSDT (SR 0.00) |
+| 8 | divergence | 1-notebook | equal | 6 | 5.66 | 1.00 | LONG BNBUSDT / SHORT NEARUSDT (SR 7.83) |
+| 8 | divergence | 2-consolidated | vol_balanced | 3 | 5.92 | 0.67 | LONG ENAUSDT / SHORT ONDOUSDT (SR 14.38) |
+| 8 | divergence | 2-consolidated | equal | 3 | 6.57 | 1.00 | LONG ENAUSDT / SHORT ONDOUSDT (SR 14.23) |
+| 9 | divergence | 1-notebook | equal | 6 | 4.15 | 1.00 | LONG ONDOUSDT / SHORT GUSDT (SR 2.18) |
+| 9 | divergence | 2-consolidated | vol_balanced | 6 | -3.84 | 0.00 | LONG ZECUSDT / SHORT WLDUSDT (SR -5.14) |
+| 9 | divergence | 2-consolidated | equal | 6 | -4.06 | 0.00 | LONG ZECUSDT / SHORT WLDUSDT (SR -5.11) |
+| 10 | divergence | 1-notebook | equal | 6 | 4.21 | 1.00 | LONG ONEUSDT / SHORT NEARUSDT (SR 4.83) |
+| 10 | divergence | 2-consolidated | vol_balanced | 5 | 0.27 | 0.33 | LONG AKEUSDT / SHORT 龙虾USDT (SR 2.00) |
+| 10 | divergence | 2-consolidated | equal | 5 | -0.34 | 0.33 | LONG AKEUSDT / SHORT 龙虾USDT (SR 0.12) |
+
+## Ranking quality (pooled across folds)
+
+- Spearman(score, test Sharpe) — 1-notebook [divergence]: 0.445
+- Spearman(score, test Sharpe) — 2-consolidated [divergence]: 0.141
+
+## Limitation
+
+~62 days, one regime, one exchange, funding rates of the short perp leg not modeled, small candidate count per fold. Results are directional evidence about ranking usefulness, **not** proof of profitability.

@@ -27,10 +27,16 @@ import pandas as pd
 from scipy.stats import spearmanr
 
 from pair_scout.analysis.cointegration import engle_granger
-from pair_scout.backtest.spread import SimResult, simulate_consolidated, simulate_notebook
+from pair_scout.backtest.spread import (
+    SimResult,
+    simulate_consolidated,
+    simulate_divergence,
+    simulate_notebook,
+)
 from pair_scout.config import AppConfig
 from pair_scout.data.loader import Panel, slice_days
 from pair_scout.jev.client import JevClient, JevError
+from pair_scout.jev.regime import entry_allowed_series
 from pair_scout.jev.ranker import (
     Assessment,
     jev_assessment,
@@ -60,6 +66,7 @@ class PairOutcome:
 class FoldResult:
     fold: int
     arm: str
+    mode: str = "cointegration"
     sizing: str = "vol_balanced"
     n_tested: int = 0
     top: list[PairOutcome] = field(default_factory=list)
@@ -94,24 +101,25 @@ class EvaluationReport:
             "",
             "## Per-fold results",
             "",
-            "| Fold | Arm | Sizing | Tested | Mean Sharpe (top-K) | Precision@K | Best pick |",
-            "|---|---|---|---|---|---|---|",
+            "| Fold | Mode | Arm | Sizing | Tested | Mean Sharpe (top-K) | Precision@K | Best pick |",
+            "|---|---|---|---|---|---|---|---|",
         ]
         for f in self.folds:
             best = (
                 f"{f.top[0].key} (SR {f.top[0].test_sharpe:.2f})" if f.top else "—"
             )
             lines.append(
-                f"| {f.fold} | {f.arm} | {f.sizing} | {f.n_tested} | "
+                f"| {f.fold} | {f.mode} | {f.arm} | {f.sizing} | {f.n_tested} | "
                 f"{f.mean_top_sharpe:.2f} | {f.precision_at_k:.2f} | {best} |"
             )
         lines += ["", "## Ranking quality (pooled across folds)", ""]
         for arm, rho in self.spearman.items():
             lines.append(f"- Spearman(score, test Sharpe) — {arm}: {rho:.3f}")
-        lines.append(
-            f"- Cointegration persistence (train p<0.05 → test p<0.05): "
-            f"{self.persistence:.0%} of {self.n_persistence}"
-        )
+        if self.n_persistence:
+            lines.append(
+                f"- Cointegration persistence (train p<0.05 → test p<0.05): "
+                f"{self.persistence:.0%} of {self.n_persistence}"
+            )
         if self.jev_error:
             lines.append(f"- JEV arm skipped/unavailable: {self.jev_error}")
         lines += [
@@ -127,9 +135,74 @@ class EvaluationReport:
 
 
 def _simulate_candidate(
-    panel_test: Panel, c, sizing: str, cfg: AppConfig, arm: str, score: float
+    panel_test: Panel, c, sizing: str, cfg: AppConfig, arm: str, score: float,
+    warmup_closes: dict[str, pd.Series] | None = None,
+    entry_allowed: pd.Series | None = None,
 ) -> PairOutcome:
-    """Simulate a screened candidate on the test panel using its stored EG orientation."""
+    """Simulate a screened candidate on the test panel, per its strategy."""
+    bars_per_year = panel_test.bars_per_day * 365
+    if c.strategy == "divergence":
+        def leg_series(asset: str) -> pd.Series:
+            test_close = panel_test.frames[asset]["Close"]
+            if warmup_closes and asset in warmup_closes:
+                return pd.concat([warmup_closes[asset], test_close])
+            return test_close
+
+        log_long = np.log(leg_series(c.asset_long))
+        log_short = np.log(leg_series(c.asset_short))
+        trade_start = (
+            panel_test.index[0] if warmup_closes and c.asset_long in warmup_closes
+            else None
+        )
+        window = max(int(cfg.backtest.signal_window_days * panel_test.bars_per_day), 2)
+        # "vol_balanced" has no meaning without the spread convention here; the
+        # risk-balanced sizing for a divergence book is beta_balanced.
+        sizing_eff = "beta_balanced" if sizing == "vol_balanced" else sizing
+        max_hold = (
+            int(cfg.backtest.max_hold_days * panel_test.bars_per_day)
+            if cfg.backtest.max_hold_days > 0 else None
+        )
+        result = simulate_divergence(
+            log_long,
+            log_short,
+            c.beta_long,
+            c.beta_short,
+            sizing=sizing_eff,
+            signal_window_bars=window,
+            entry_mom_per_bar=cfg.backtest.divergence_entry_mom / window,
+            exit_mom_per_bar=cfg.backtest.divergence_exit_mom / window,
+            fee_bps=cfg.backtest.fee_bps,
+            slippage_bps=cfg.backtest.slippage_bps,
+            bars_per_year=bars_per_year,
+            max_hold_bars=max_hold,
+            trade_start=trade_start,
+            entry_mode=cfg.backtest.entry_mode,
+            z_entry=cfg.backtest.z_entry,
+            z_lookback_bars=max(
+                int(cfg.backtest.z_lookback_days * panel_test.bars_per_day), 5
+            ),
+            momentum_shift_bars=int(
+                cfg.backtest.momentum_shift_hours * panel_test.bars_per_day / 24
+            ),
+            spread_stop_pct=cfg.backtest.spread_stop_pct,
+            entry_allowed=entry_allowed,
+            cooldown_bars=int(
+                cfg.backtest.reentry_cooldown_hours * panel_test.bars_per_day / 24
+            ),
+        )
+        return PairOutcome(
+            key=f"LONG {c.asset_long} / SHORT {c.asset_short}",
+            arm=arm,
+            score=score,
+            test_sharpe=result.sharpe,
+            test_return=result.total_return,
+            max_drawdown=result.max_drawdown,
+            hit_rate=result.hit_rate,
+            n_trades=result.n_trades,
+            train_pvalue=c.pvalue,
+            test_pvalue=float("nan"),  # EG persistence is not a divergence metric
+        )
+
     y_a, x_a = c.spread_y_asset or c.asset_short, c.spread_x_asset or c.asset_long
     vol_of = {c.asset_long: c.annualized_vol_long, c.asset_short: c.annualized_vol_short}
     outcome = _simulate_on_test(
@@ -199,15 +272,19 @@ def run_evaluation(
     panel: Panel,
     use_jev: bool = True,
     jev_client: JevClient | None = None,
+    regime_gates: dict[str, float] | None = None,
 ) -> EvaluationReport:
     report = EvaluationReport(generated_at=datetime.now(timezone.utc))
     total_days = panel.days
-    folds = []
-    fold1_test_end = cfg.eval.train_days + cfg.eval.test_days
-    folds.append((1, 0, cfg.eval.train_days, cfg.eval.train_days, fold1_test_end))
-    fold2_train_end = cfg.eval.train_days + cfg.eval.roll_days
-    if fold2_train_end + 5 <= total_days:
-        folds.append((2, 0, fold2_train_end, fold2_train_end, total_days))
+    # rolling walk-forward: fold starts advance by roll_days until the data ends
+    folds: list[tuple[int, int, int]] = []
+    t0 = cfg.eval.train_days
+    while t0 + cfg.eval.test_days <= total_days:
+        folds.append((1 + len(folds), 0, t0, t0, t0 + cfg.eval.test_days))
+        t0 += cfg.eval.roll_days
+    if not folds:
+        logger.warning("panel too short (%d days) for walk-forward folds", total_days)
+        return report
 
     jev_failed: str | None = None
     if use_jev and cfg.jev.enabled:
@@ -231,6 +308,20 @@ def run_evaluation(
         if not screen.passed:
             logger.warning("fold %d: no candidates passed filters", fold_no)
             continue
+        warmup_bars = max(
+            int(cfg.backtest.z_lookback_days * panel.bars_per_day),
+            int(cfg.backtest.signal_window_days * panel.bars_per_day)
+            + int(cfg.backtest.momentum_shift_hours * panel.bars_per_day / 24)
+            + 5,
+        )
+        warmup_closes = {
+            p: train.frames[p]["Close"].tail(warmup_bars) for p in train.pairs
+        }
+        allowed = (
+            entry_allowed_series(test, regime_gates, cfg.jev.regime_gate_min)
+            if regime_gates
+            else None
+        )
 
         # Arm 1: notebook logic — in-sample selection p<0.01 on TEST window stats
         arm1_pairs = _notebook_arm_selection(test, cfg)
@@ -243,26 +334,31 @@ def run_evaluation(
         ]
         outcomes1.sort(key=lambda o: o.score, reverse=True)
         report.folds.append(
-            FoldResult(fold=fold_no, arm="1-notebook", sizing="equal",
+            FoldResult(fold=fold_no, arm="1-notebook", mode=cfg.screen.mode,
+                       sizing="equal",
                        n_tested=len(outcomes1), top=outcomes1[: cfg.eval.top_k])
         )
-        _pool_spearman(spearman_data, "1-notebook", outcomes1)
+        _pool_spearman(spearman_data, f"1-notebook [{cfg.screen.mode}]", outcomes1)
 
         # Arm 2: consolidated, rule-based ranking, both sizings
         for sizing in ("vol_balanced", "equal"):
             outcomes2 = []
             for i, c in enumerate(screen.passed):
-                outcome = _simulate_candidate(test, c, sizing, cfg, "consolidated",
-                                              rule_based_assessment(c).composite)
+                outcome = _simulate_candidate(
+                    test, c, sizing, cfg, "consolidated",
+                    rule_based_assessment(c).composite,
+                    warmup_closes=warmup_closes,
+                )
                 c.test_pvalue_cache = outcome.test_pvalue
                 outcomes2.append(outcome)
             outcomes2.sort(key=lambda o: o.score, reverse=True)
             report.folds.append(
-                FoldResult(fold=fold_no, arm="2-consolidated", sizing=sizing,
+                FoldResult(fold=fold_no, arm="2-consolidated", mode=cfg.screen.mode,
+                           sizing=sizing,
                            n_tested=len(outcomes2), top=outcomes2[: cfg.eval.top_k])
             )
             if sizing == "vol_balanced":
-                _pool_spearman(spearman_data, "2-consolidated", outcomes2)
+                _pool_spearman(spearman_data, f"2-consolidated [{cfg.screen.mode}]", outcomes2)
 
         # persistence over scanned candidates (test p-values now cached)
         for c in screen.candidates:
@@ -284,15 +380,18 @@ def run_evaluation(
             for a in assessments:
                 c = a.candidate
                 outcome = _simulate_candidate(test, c, "vol_balanced", cfg,
-                                              "consolidated+jev", a.composite)
+                                              "consolidated+jev", a.composite,
+                                              warmup_closes=warmup_closes,
+                                              entry_allowed=allowed)
                 c.test_pvalue_cache = outcome.test_pvalue
                 outcomes3.append(outcome)
             outcomes3.sort(key=lambda o: o.score, reverse=True)
             report.folds.append(
-                FoldResult(fold=fold_no, arm="3-consolidated+jev", sizing="vol_balanced",
+                FoldResult(fold=fold_no, arm="3-consolidated+jev", mode=cfg.screen.mode,
+                           sizing="vol_balanced",
                            n_tested=len(outcomes3), top=outcomes3[: cfg.eval.top_k])
             )
-            _pool_spearman(spearman_data, "3-consolidated+jev", outcomes3)
+            _pool_spearman(spearman_data, f"3-consolidated+jev [{cfg.screen.mode}]", outcomes3)
 
     for arm, (scores, sharpes) in spearman_data.items():
         if len(scores) >= 3:
