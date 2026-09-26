@@ -125,6 +125,33 @@ def cmd_refresh_data(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def cmd_ta_probe(args: argparse.Namespace) -> int:
+    from pair_scout.ta_probe import run_ta_probe
+
+    cfg = load_config(args.config)
+    data_dir = "saved_data_live"
+    if not args.skip_refresh:
+        from pair_scout.data.refresh import refresh_all
+
+        logger.info("refreshing live klines (%d bars/pair) into %s",
+                    args.bars, data_dir)
+        res = refresh_all(cfg.data.cex, cfg.data.interval, args.bars,
+                          data_dir=data_dir)
+        ok = sum(1 for n in res.values() if n >= args.bars * 0.9)
+        logger.info("refreshed %d/%d pairs", ok, len(res))
+    chunks = run_ta_probe(cfg, send=args.send, data_dir=data_dir,
+                          only_signals=args.only_signals,
+                          universe_top=args.universe_top,
+                          family=args.family, max_slots=args.slots)
+    for i, chunk in enumerate(chunks):
+        if i:
+            print("\n" + "-" * 60)
+        print(chunk)
+    if not args.send:
+        logger.info("dry-run: probe printed, not sent (use --send to deliver)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="pair_scout",
@@ -159,6 +186,25 @@ def build_parser() -> argparse.ArgumentParser:
     tn = sub.add_parser("tune", help="walk-forward parameter sweep")
     tn.add_argument("--mode", default="divergence", choices=["divergence", "cointegration"])
     tn.add_argument("--out", default="pair_scout/output", help="output directory")
+
+    tp = sub.add_parser("ta-probe",
+                        help="Donchian channel probe: scan + alert via Telegram")
+    tp.add_argument("--send", action="store_true",
+                    help="send to Telegram (default: dry-run print)")
+    tp.add_argument("--skip-refresh", action="store_true",
+                    help="use existing saved_data_live klines")
+    tp.add_argument("--bars", type=int, default=2200,
+                    help="bars to refresh per pair (~90 days of 1h)")
+    tp.add_argument("--only-signals", action="store_true",
+                    help="skip the Telegram message when there are no new signals")
+    tp.add_argument("--family", default="psar", choices=("psar", "donchian"),
+                    help="signal family (psar = validated champion, donchian = "
+                         "pass-10 runner-up)")
+    tp.add_argument("--slots", type=int, default=8,
+                    help="max concurrent positions shown (champion uses 8)")
+    tp.add_argument("--universe-top", type=int, default=200,
+                    help="point-in-time universe size (30 = liquid tier with the "
+                         "cleanest fills; backtest optimum is 200 for max signals)")
     return parser
 
 
@@ -175,6 +221,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_refresh_data(args)
         if args.command == "tune":
             return cmd_tune(args)
+        if args.command == "ta-probe":
+            return cmd_ta_probe(args)
         parser.error(f"unknown command {args.command}")
     except ConfigError as exc:
         logger.error("configuration error: %s", exc)

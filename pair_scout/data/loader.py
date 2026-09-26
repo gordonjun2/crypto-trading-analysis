@@ -127,6 +127,31 @@ def load_panel(
     union_index = sorted(set().union(*(set(df.index) for df in (raw[p] for p in ranked))))
     union_index = pd.DatetimeIndex(union_index).sort_values()
 
+    # Trim union-index edges where only a minority of pairs have data. A couple
+    # of pairs starting/ending one bar off (e.g. a fetch racing the open candle)
+    # would otherwise put a 1-bar leading/trailing NaN on every other pair and
+    # get the whole panel dropped (2026-09-24 incident: 649/651 "leading NaNs").
+    coverage: dict = {}
+    for p in ranked:
+        for ts in raw[p].index:
+            coverage[ts] = coverage.get(ts, 0) + 1
+    threshold = max(2, len(ranked) // 2)
+    keep = np.fromiter(
+        (coverage.get(ts, 0) >= threshold for ts in union_index),
+        dtype=bool, count=len(union_index),
+    )
+    if not keep.any():
+        raise DataError("union index has no bar covered by a majority of pairs")
+    first_i = int(np.argmax(keep))
+    last_i = len(keep) - int(np.argmax(keep[::-1]))
+    if first_i > 0 or last_i < len(keep):
+        logger.info(
+            "trimmed %d leading / %d trailing sparse union bars "
+            "(<%d of %d pairs covered)",
+            first_i, len(keep) - last_i, threshold, len(ranked),
+        )
+        union_index = union_index[first_i:last_i]
+
     frames: dict[str, pd.DataFrame] = {}
     dropped: list[str] = []
     for pair in ranked:

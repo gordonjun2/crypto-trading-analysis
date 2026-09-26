@@ -17,17 +17,39 @@ logger = logging.getLogger(__name__)
 
 KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
 MAX_PER_REQUEST = 1500
-REQUEST_WEIGHT_SLEEP = 0.05  # weight 10/request; fapi allows 2400/min — very safe
+# weight 10/request; fapi allows 2400/min → keep ~200 req/min (weight ~2000).
+# 0.05s previously ran ~3300 weight/min and drew 429s on full-universe refreshes.
+REQUEST_WEIGHT_SLEEP = 0.30
+REQUEST_TIMEOUT = 60
+MAX_RATE_LIMIT_WAIT = 300  # give up only if a single symbol is throttled >5min total
+
+
+def _interval_ms(interval: str) -> int:
+    units = {"m": 60_000, "h": 3_600_000, "d": 86_400_000}
+    if not interval or interval[-1] not in units:
+        raise ValueError(f"unsupported interval: {interval!r}")
+    return int(float(interval[:-1]) * units[interval[-1]])
+
+
+def last_closed_bar_ms(interval: str, now_ms: int | None = None) -> int:
+    """Open time of the most recent CLOSED candle (excludes the forming bar)."""
+    ms = _interval_ms(interval)
+    now = int(time.time() * 1000) if now_ms is None else now_ms
+    return (now // ms) * ms - ms
 
 
 def _fetch_window(symbol: str, interval: str, end_ms: int, limit: int,
-                  retries: int = 4) -> list[list]:
+                  retries: int = 6) -> list[list]:
     params = {"symbol": symbol, "interval": interval, "limit": limit}
     if end_ms:
         params["endTime"] = end_ms
-    for attempt in range(1, retries + 1):
+    attempt = 0
+    backoff = 1.0
+    while attempt < retries:
+        attempt += 1
         try:
-            response = requests.get(KLINES_URL, params=params, timeout=30)
+            response = requests.get(KLINES_URL, params=params,
+                                    timeout=REQUEST_TIMEOUT)
         except requests.RequestException as exc:
             if attempt == retries:
                 raise
@@ -36,10 +58,13 @@ def _fetch_window(symbol: str, interval: str, end_ms: int, limit: int,
             continue
         if response.status_code == 200:
             return response.json()
-        if response.status_code == 429:
-            wait = float(response.headers.get("Retry-After", 10))
-            logger.warning("rate limited; sleeping %.0fs", wait)
+        if response.status_code in (429, 418):
+            wait = min(float(response.headers.get("Retry-After", 10)) * backoff,
+                       MAX_RATE_LIMIT_WAIT)
+            backoff = min(backoff * 2, 8.0)
+            logger.warning("rate limited (%s); sleeping %.0fs", symbol, wait)
             time.sleep(wait)
+            attempt -= 1  # throttling is transient: don't consume the retry budget
             continue
         raise RuntimeError(
             f"kline fetch for {symbol} returned HTTP {response.status_code}"
@@ -49,9 +74,15 @@ def _fetch_window(symbol: str, interval: str, end_ms: int, limit: int,
 
 def fetch_klines_paginated(symbol: str, interval: str, bars: int,
                            end_ms: int = 0) -> list[list]:
-    """Walk backward until `bars` candles are collected (or the API runs dry)."""
+    """Walk backward until `bars` candles are collected (or the API runs dry).
+
+    With no explicit ``end_ms``, the fetch stops at the last CLOSED candle:
+    including the still-forming bar makes pairs fetched seconds apart end on
+    different timestamps, which poisons the panel's union-index alignment
+    (2026-09-24 incident: 649/651 pairs dropped as "leading NaNs").
+    """
     collected: list[list] = []
-    end = end_ms
+    end = end_ms or last_closed_bar_ms(interval)
     while len(collected) < bars:
         batch = _fetch_window(symbol, interval, end, min(MAX_PER_REQUEST, bars - len(collected)))
         if not batch:
@@ -81,6 +112,9 @@ def refresh_pair(symbol: str, interval: str, bars: int, dir_path: str | Path,
     from cex_api.query_binance_data import get_binance_perpetual_futures_candlestick_data
     from data_manager import save_ts_df  # reuse the exact on-disk layout
 
+    if not end_ms:
+        # align every pair on the last closed candle (see fetch_klines_paginated)
+        end_ms = last_closed_bar_ms(interval)
     raw = fetch_klines_paginated(symbol, interval, bars, end_ms) if bars > MAX_PER_REQUEST else None
     if raw is None:
         # small request: use the original single-shot fetcher

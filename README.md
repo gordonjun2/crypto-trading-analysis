@@ -1,5 +1,13 @@
 # crypto-pair-trading
 
+> **🏆 Current best strategy: dual-direction Parabolic SAR flip trading** over a
+> broad point-in-time universe at slot breadth — live as the **TA Channel Probe**
+> (daily Telegram alerts at 10:00 SGT). Jump to
+> [Current Best Strategy](#-current-best-strategy--dual-direction-parabolic-sar-flips)
+> and [Architecture](#️-architecture--end-to-end-pipeline). Everything else in
+> this README documents the research journey — including six strategy families
+> that were tested and honestly rejected.
+
 ### **Overview**
 This repository contains Jupyter notebooks implementing several pair trading strategies designed to minimize risk while maximizing returns. These strategies focus on profiting from relative price movements between cryptocurrencies, leveraging correlations and market dynamics.
 <br>
@@ -222,6 +230,143 @@ This notebook aims to provide insights into price fluctuations and helping trade
 
 ---
 
+### **🏆 Current Best Strategy — Dual-Direction Parabolic SAR Flips**
+
+The only strategy family that survived the full validation battery twice over
+(pass 10: Donchian; pass 11: PSAR — which dominates it). 12 months of 1h data,
+continuous simulation, 7 bps/side fees + real funding, daily-block bootstrap.
+Full research trail: `pair_scout/output/ta_families_conclusion.md`.
+
+| Spec | Value |
+|---|---|
+| Signals | Parabolic SAR (af 0.02→0.2) on 4h bars: price crosses above SAR → LONG; below → SHORT (flip = both entry and exit) |
+| Universe | Point-in-time top-200 by trailing 30-day dollar volume (causal, recomputed every bar from all ~650 pairs) |
+| Sizing | 6–8 concurrent slots × 1/N book (1x gross), FIFO by symbol, no hedges |
+| Exits | SAR flip (primary) · 7-day time stop · 5% adverse stop |
+| Costs | 7 bps/side taker + 2 bps slippage + real Binance funding on held legs |
+
+**Backtest (12 months continuous, 8 slots @1x gross):**
+
+| Metric | Value |
+|---|---|
+| Daily-block SR 90% CI | **[2.90, 3.53]**, P(SR≤0) = 0% |
+| Return | +835%/yr |
+| Max drawdown | −7.9% |
+| Months positive | 12 / 12 (min +36%) |
+| Slippage stress | +45 bps/side extra → daily CI [1.83, 2.47], P0 0% |
+| Neighborhood | af0 0.01/0.02/0.04 × afmax 0.1/0.2/0.4 → SR 12.97–15.99 (flat) |
+| Slot sweep @1x | 3/4/6/8/10 slots → SR 11.9/12.9/14.5/15.7/16.7 (breadth monotone) |
+
+Trade quality vs the Donchian runner-up: top-10 trades carry 22% of PnL
+(Donchian: 81%), median trade positive, win rate 54%. Both directions work
+independently (long-only 11.25 / short-only 9.85 hourly SR at 4 slots).
+
+**Caveats that matter:** delisted pairs missing from the exchange list
+(optimistic survivorship); ONE exceptional trend year (12/12 positive months
+is partly regime); the strategy churns ~2,500 trades/yr — ~55% of book in
+yearly round-trip fees — so live flip-bar slippage is the make-or-break
+variable (hence the paper-trade probe). Run it:
+
+```bash
+python -m pair_scout ta-probe --send                       # champion config (psar, top-200, 8 slots)
+python -m pair_scout ta-probe --send --universe-top 30     # liquid-tier alerts only
+python -m pair_scout ta-probe --send --family donchian     # pass-10 runner-up
+```
+
+Runner-up (pass 10, still validated): dual-direction Donchian 20d/10d,
+3 slots × ⅓, top-200: daily CI [0.91, 1.61], +535%/yr, DD −31% — dominated by
+PSAR on every metric but kept as an independent family check.
+
+---
+
+### **🏗️ Architecture — End-to-End Pipeline**
+
+```mermaid
+flowchart TD
+    subgraph DATA["📥 Data Layer"]
+        A1["Binance USDT-perp REST<br/>klines + funding (keyless)"]
+        A2["pair_scout/data/refresh.py<br/>paginated fetcher (657 pairs)"]
+        A3["saved_data_live/ (~90d, rolling)<br/>saved_data_12m/ (12mo research)<br/>funding_rates.json"]
+        A1 --> A2 --> A3
+        A3 --> A4["pair_scout/data/loader.py<br/>Panel: aligned OHLCV · gap filters"]
+    end
+
+    subgraph SIG["🎯 Signal Layer — TA Channel Probe (LIVE)"]
+        B1["Parabolic SAR flips on 4h bars<br/>cross above SAR → LONG<br/>cross below SAR → SHORT<br/>(donchian family: --family donchian)"]
+        B2["Point-in-time universe<br/>top-N by trailing 30d $volume<br/>(recomputed every bar — causal)"]
+        B3["Portfolio engine<br/>6–8 slots × 1/N · ≤7d hold<br/>5% stop · flip exit"]
+        B1 --> B3
+        B2 --> B3
+    end
+
+    subgraph VAL["🔬 Validation Battery (backtests)"]
+        C1["12-month continuous simulation<br/>(no fold resets)"]
+        C2["Daily-block bootstrap CI<br/>+ P(SR≤0)"]
+        C3["Neighborhood · sample halves<br/>breadth · fee/slippage stress<br/>drop-coin · falsification checks"]
+        C1 --> C2 --> C3
+    end
+
+    subgraph LIVE["📤 Delivery Layer"]
+        D1["pair_scout/ta_probe.py<br/>NEW / ONGOING / EXITED states<br/>entry · stop · exit levels · max-hold"]
+        D2["pair_scout/telegram.py<br/>HTML · 4096-char chunking · retries"]
+        D3["cron: daily 10:00 SGT<br/>(DST-proof hourly guard)"]
+        D1 --> D2 --> D3
+    end
+
+    DATA --> SIG
+    SIG --> VAL
+    SIG --> LIVE
+```
+
+**Live probe data flow (per daily run):**
+
+```mermaid
+sequenceDiagram
+    participant C as cron (10:00 SGT)
+    participant P as ta-probe CLI
+    participant B as Binance API
+    participant S as Scanner
+    participant T as Telegram
+    C->>P: ta-probe --send
+    P->>B: refresh ~90d klines × 657 pairs (paginated)
+    B-->>P: OHLCV → saved_data_live/
+    P->>P: load panel · causal top-N universe
+    P->>S: PSAR flip states per coin (or Donchian)
+    S-->>P: NEW / ONGOING / EXITED + levels
+    P->>T: HTML report (chunked, retried)
+    T-->>C: 🟢🔴 new entries · ⏳ ongoing · ✅ exits
+```
+
+**Research families tested and rejected** (full log below):
+
+```mermaid
+flowchart LR
+    R["12-month research<br/>~200 configurations"] --> M["Momentum divergence<br/>1-1 books"]
+    R --> F["Funding-squeeze pairs"]
+    R --> B["Cross-sectional baskets<br/>(momentum / reversal / 2:1)"]
+    R --> T["TA price-action families<br/>(Donchian, PSAR, Keltner,<br/>RSI, MACD, EMA, BB...)"]
+    M --> X1["❌ 12m verdict: regime +<br/>universe-selection luck"]
+    F --> X2["❌ carry real (+45-110%/yr)<br/>but price drag dominates ≤1w"]
+    B --> X3["❌ fails halves +<br/>neighborhood + breadth"]
+    T --> P["✅ PSAR champion + Donchian<br/>runner-up survive full battery<br/>→ live Telegram probe"]
+```
+
+Key architectural principles (learned the hard way — see iteration log):
+
+- **Point-in-time universes only**: fixed "top-N by final volume" panels are
+  the year's winner list — survivorship inflated every naive result (ZEC 33x,
+  BR 14.5x were in the old panel *because* they pumped).
+- **Continuous simulation**: fold-chunked backtests (positions force-closed at
+  fold boundaries) inflate Sharpe ~2–2.5× vs a continuous run.
+- **Bootstrap over hourly Sharpe**: hourly SR overstates ~3×; daily-block
+  bootstrap is the honest significance test.
+- **Falsification checks**: each harness reproduces a documented effect in the
+  documented direction before its verdicts are trusted.
+- **Decomposed PnL**: net = price − fees + carry, so every verdict states
+  *where* money comes from.
+
+---
+
 ### **PairScout — Consolidated Screener (Python package)**
 
 `pair_scout/` consolidates the five pair-trading notebooks into one maintained,
@@ -413,5 +558,58 @@ selection-prone. Directional evidence, not proof of profitability.
   (10/20/40d flat), both halves (H1 6.76 / H2 5.38), +45bps/side slippage
   stress (5.10). Caveats: delisted-pair survivorship (unquantifiable), one
   exceptional trend year, live small-cap fill quality. Verdict: PAPER-TRADE
-  CANDIDATE — wire into the daily Telegram run; measure live slippage before
-  any capital. Write-up: `pair_scout/output/ta_general_conclusion.md`.
+   CANDIDATE — wire into the daily Telegram run; measure live slippage before
+   any capital. Write-up: `pair_scout/output/ta_general_conclusion.md`.
+- **Iteration 11 — TA family scan: PSAR flips REPLACE Donchian as champion**
+  (2026-09-23, overnight). Scanned 15 directional price-action families under
+  the identical pass-10 protocol (point-in-time top-200, continuous 12m,
+  fees+funding, bootstrap, 3 slots): PSAR 11.91 > RSI-regime 8.65 >
+  supertrend 8.09 > keltner 7.45 > Donchian anchor 5.77 > MACD/EMA 3.4–4.2.
+  Three structural findings beyond the family ranking: (1) **slot breadth is
+  monotone at fair 1x gross** — 3→10 slots × 1/N lifts SR 11.9→16.7 and cuts
+  DD −12%→−7% (portfolio-level version of the pass-10 universe-breadth law);
+  (2) momentum-ranked entry selection REJECTED (DD −46% vs FIFO); (3)
+  ensembles (PSAR∪RSI∪Keltner) don't beat pure PSAR. **New champion:
+  dual-direction PSAR flips (af .02/.2, 4h), 8 slots @1x: daily-block CI
+  [2.90, 3.53], P0 0%, +835%/yr, DD −7.9%, 12/12 positive months; survives
+  6-point param neighborhood (12.97–15.99), ×3 fees, +45bps slippage, both
+  halves (14.4/17.1), drop-5-coins; signal-lag falsification decays
+  gracefully (no timing artifact).** vs Donchian: ~2x honest SR, 1/4 the DD,
+  trade concentration 22% vs 81%. JEV tested as soft size per user:
+  +0.25 SR (inside noise), inverse negative — third independent JEV negative,
+  not adopted. Caveats: delisted survivorship, one trend year, ~2.5k trades/yr
+  churn (fee-heavy; live slippage is the make-or-break). `ta-probe` now
+  defaults to the PSAR champion. Write-up:
+  `pair_scout/output/ta_families_conclusion.md`.
+
+### **TA Channel Probe (live paper-trade alerts)**
+
+`ta-probe` wires the validated champion (pass 11: dual-direction PSAR flips,
+6–8 slots × 1/N, causal top-200 universe) into Telegram as a daily alert:
+
+```
+python -m pair_scout ta-probe --send          # refresh data, scan, send alerts
+python -m pair_scout ta-probe --skip-refresh  # reuse saved_data_live klines
+python -m pair_scout ta-probe --send --only-signals   # skip "quiet day" messages
+python -m pair_scout ta-probe --send --universe-top 30    # liquid-tier alerts only
+python -m pair_scout ta-probe --send --family donchian    # pass-10 runner-up
+```
+
+Defaults mirror the champion: `--family psar --universe-top 200 --slots 8`.
+Message UX: 🟢 new longs / 🔴 new shorts (entry, 5% stop, exit level, max-hold
+date; the first 8 by symbol are actionable, `*` marks overflow beyond the
+champion's slots), ⏳ ongoing positions with live PnL, ✅ exits in the last 24h
+with reason, slots used, or a "quiet day" heartbeat (`--only-signals`
+suppresses those). Analysis only — no orders are placed.
+
+Installed cron (daily **10:00 SGT**, DST-proof via an hourly SGT-hour guard):
+
+```
+0 * * * * [ "$(TZ=Asia/Singapore date +\%H)" = "10" ] && cd /root/crypto-trading-analysis && ./venv/bin/python -m pair_scout ta-probe --send >> /root/crypto-trading-analysis/ta_probe.log 2>&1
+```
+
+Data lives in `saved_data_live/` ( refreshed to ~90 days per pair each run;
+the 12-month research dataset in `saved_data_12m/` is untouched). Telegram
+group IDs for supergroups need the `-100` prefix (e.g. `-1003841092472`) —
+"Chat not found" usually means the prefix is missing or the bot isn't in the
+group.
