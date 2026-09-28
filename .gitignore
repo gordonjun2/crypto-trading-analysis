@@ -164,11 +164,12 @@ cython_debug/
 # Private Keys
 private.ini
 
-# Saved data
-*.pkl
-
 # Others
 .DS_Store
 
 # 24-month research dataset (427MB, refetchable via loader+fetch_funding24)
 saved_data_24m/
+# Other downloaded working sets (kept local; research datasets are in LFS)
+saved_data/binance/
+saved_data_live/binance/
+saved_data_ref/binance/
