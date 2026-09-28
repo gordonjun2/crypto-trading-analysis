@@ -38,6 +38,20 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+FINAL VERDICT (2026-09-28, rounds 21-24 — exhaustion sweep). ALL REJECTED,
+production v6 + 60/40 stands: squeeze 2h/1h state grids degenerate (23/0
+trades); retest entries (0.88); fade trailing-last tranche (5.72, origin
+ride stays); k fine grid on v6 base — 4.0-5.0 is ONE flat plateau
+(k4.25 6.26 / k4.75 6.22 / k4.5 6.16 / k5 6.00; DD rises as k falls;
+user-split test window prefers k5) -> no adoption, k5 sits mid-plateau
+(robustness positive); vol 2.75/3.25 noise; liquidity tiers HURT at every
+cut (top-50 1.87, top-100 3.39, rank101-200 4.41, full 6.00) — the fade
+edge lives in mid/low-liquidity pumps and universe DIVERSITY is part of
+the edge; second-bar exhaustion too rare (47 trades); weekend/weekday
+sub-books both weaker than combined (3.91/4.59 vs 6.00). Pattern across
+17-24: adoptions were execution-honesty + one weight tilt; every
+conditioning/filter idea reduced the book.
+
 FINAL VERDICT (2026-09-28, round 20 — squeeze structure + pair weights).
 ADOPTED 60/40 PAIR TILT: fade/squeeze 60/40 dominates 50/50 on every split
 (full 5.73 vs 5.21, H1 4.26/3.78, H2 7.16/6.62, train 4.75/4.20,
@@ -45,9 +59,10 @@ test 7.21/6.69; DD -9.3% vs -9.7%; worst month -0.5%) — books are
 uncorrelated and fade is the stronger book; inverse-vol a-priori agrees.
 REJECTED: squeeze 50d-SMA trend alignment (1.20 flat); trigger volume
 >= 1.5x (0.39 — no volume signal exists in squeeze breakouts: 3x family
-fail, <= 0.8x dry-up fail, 1.5x fail). 12h state grid INVALID as tested
-(12h resample breaks the hourly causal mapping in _states_to_signals ->
-lookahead; parked, needs shift-by-grid alignment before any verdict).
+fail, <= 0.8x dry-up fail, 1.5x fail). 12h state grid GENUINELY FAILS
+(-0.12, DD -63.7%, 826 trades — shift(1) in _states_to_signals is in
+grid-bar units so mapping stays causal; longer 12h holds bleed via the
+5% stop).
 
 FINAL VERDICT (2026-09-28, round 19 — FADE microstructure round 2). ALL
 FAIL: fatigue filter (skip 2+/3+ closes in 48h) — identical book, cooldown
