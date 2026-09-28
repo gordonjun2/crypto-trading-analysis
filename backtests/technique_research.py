@@ -17,6 +17,27 @@ regime is simply more active (fade-friendly).
 if they improve WALK-FORWARD OOS (not full-sample SR); real validation =
 forward paper-trading via the live journal (4-8 weeks minimum).
 
+FINAL VERDICT (2026-09-28, round 18 — PRODUCTION v6). HONEST FILLS +
+COOLDOWN: (i) tranche/origin exits modeled as RESTING LIMITS filled on
+intrabar wick touch (iterate17 fade_sim3 touch=True) — the close-based
+model filled tranches at overshoot prices and overstated return by ~14pp/yr
+(+185% -> +171%/yr) at identical SR; (ii) 12h same-symbol re-entry cooldown
+(plateau 12-24h flat, binds on ~11/848 trades, improves BOTH halves:
+H1 4.30->4.81, train 4.86->5.22, full 5.77->6.00) — churn re-entries after
+a completed fade are systematically bad. FADE v6: SR 6.00, +176%/yr,
+DD -13.7% (12m cross-check 7.12). Pair 50/50: SR 5.21, +105%/yr,
+DD -9.7%, worst month -0.2%. Vol-targeted pair rejected (+0.2 SR, worse
+DD); inverse-vol weights rejected (4.77).
+
+FINAL VERDICT (2026-09-28, round 17 — post-v5 battery). ALL FAIL:
+squeeze trigger conditioning (compression duration >= 6/18 bars 0.92/0.63,
+tightness pct <= 30% 1.04, volume dry-up 0.56 vs 1.24 production); squeeze
+stop/cap sweep (stop 4/6% flat 1.24/1.30; cap 10/14d RAISES DD to
+-40/-49% — mid-band exit IS the risk control); failed-breakout fade NEW
+FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
+3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
+filter); slots 4/12 worse than 8 (5.53/5.64).
+
 FINAL VERDICT (2026-09-27, round 15 — PRODUCTION v5). 3-TRANCHE EXIT:
 FADE v5 = spike >= 5xATR + vol >= 3x, top-200 alt -> FADE SHORT; realize
 50% at 50% retracement, 25% at 75%, 25% rides to origin; cap 42h; ivol.

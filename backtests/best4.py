@@ -1,15 +1,17 @@
-"""MAIN STRATEGY — canonical 5-variant table (production v5, 2026-09-27).
+"""MAIN STRATEGY — canonical 5-variant table (production v6, 2026-09-28).
 
-Round-15 production definition (24m-validated, cross-checked on 12m):
-  v1 hourly gated   -> FADE v5 gated (tiny sample)
-  v2 hourly nogate  -> FADE v5: spike >= 5xATR + vol >= 3x, ivol, 3-tranche
-                       scale-out (50% @ 50% retrace, 25% @ 75%, 25% @ origin),
-                       cap 42h [PRODUCTION]
+Round-18 production definition (24m-validated, cross-checked on 12m):
+  v1 hourly gated   -> FADE v6 gated (tiny sample)
+  v2 hourly nogate  -> FADE v6: spike >= 5xATR + vol >= 3x, ivol, 3-tranche
+                        scale-out as RESTING LIMITS (50% @ 50% retrace,
+                        25% @ 75%, 25% @ origin, wick-touch fills),
+                        12h same-symbol re-entry cooldown, cap 42h
+                        [PRODUCTION]
   v3 daily          -> SQUEEZE-breakout, true mid-band exit, + risk overlays
-                       (PSAR RETIRED: fails 24m) [PRODUCTION]
+                        (PSAR RETIRED: fails 24m) [PRODUCTION]
   v4 daily nogate   -> SQUEEZE bare
   v5 COMBO          -> 50/50 capital: squeeze-daily + fade-hourly [PRODUCTION
-                       PAIR: SR 5.16, P0 0%, maxDD -9.7%, worst month -0.9%]
+                        PAIR: SR 5.21, P0 0%, maxDD -9.7%, worst month -0.2%]
 
 Run:  ./venv/bin/python backtests/best4.py            # 5-variant table
       ./venv/bin/python backtests/best4.py --matrices # + reference matrix
@@ -24,7 +26,8 @@ import numpy as np
 import pandas as pd
 
 import technique_research as TR
-from iterate14 import fade_sim2, squeeze2, SQ_OVER
+from iterate17 import fade_sim3
+from iterate14 import squeeze2, SQ_OVER
 import family_scan_honest as FS
 
 idx = TR.idx
@@ -44,10 +47,9 @@ def report(label, net, n=None):
 if __name__ == "__main__":
     matrices = "--matrices" in sys.argv
 
-    # compute the books once (production v5 configs)
-    V5_TR = [(0.5, 0.5), (0.75, 0.25)]
-    f5_gated, _, rc_g = fade_sim2(cap_h=42, tranches=V5_TR, gate=80)
-    fade_net, _, rc_f = fade_sim2(cap_h=42, tranches=V5_TR)
+    # compute the books once (production v6 configs)
+    f6_gated, _, rc_g = fade_sim3(touch=True, cooldown_h=12, gate=80)
+    fade_net, _, rc_f = fade_sim3(touch=True, cooldown_h=12)
     sq = FS.sim(squeeze2(), False, None, SQ_OVER)
     sq_bare = FS.sim(squeeze2(), False, None)
     combo = 0.5 * sq["net"] + 0.5 * fade_net
@@ -65,9 +67,9 @@ if __name__ == "__main__":
               f"{net.sum() * 365 / days:+.0%}/yr | {max_dd_of(net):.1%} |",
               flush=True)
 
-    row("v1 hourly gated", "FADE v5 gated (small sample)", f5_gated, len(rc_g))
+    row("v1 hourly gated", "FADE v6 gated (small sample)", f6_gated, len(rc_g))
     row("v2 hourly nogate",
-        "FADE v5 vol>=3x + 3-tranche exit (PRODUCTION)", fade_net, len(rc_f))
+        "FADE v6 vol>=3x + 3-tranche exit (PRODUCTION)", fade_net, len(rc_f))
     row("v3 daily", "SQUEEZE mid-exit + overlays (PRODUCTION)",
         sq["net"], sq["n"])
     row("v4 daily nogate", "SQUEEZE mid-exit bare", sq_bare["net"], sq_bare["n"])
@@ -101,7 +103,7 @@ if __name__ == "__main__":
         print("## Reference — production strategies across their cells")
         print("| variant | SR(bar) | daily-block CI | ret | maxDD |")
         print("|---|---|---|---|---|")
-        report("FADE v5 — hourly nogate", fade_net, len(rc_f))
-        report("FADE v5 — hourly gated", f5_gated, len(rc_g))
+        report("FADE v6 — hourly nogate", fade_net, len(rc_f))
+        report("FADE v6 — hourly gated", f6_gated, len(rc_g))
         report("SQUEEZE — daily + overlays", sq["net"], sq["n"])
         report("SQUEEZE — daily bare", sq_bare["net"], sq_bare["n"])
