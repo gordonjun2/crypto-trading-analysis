@@ -10,8 +10,8 @@ Round-18 production definition (24m-validated, cross-checked on 12m):
   v3 daily          -> SQUEEZE-breakout, true mid-band exit, + risk overlays
                         (PSAR RETIRED: fails 24m) [PRODUCTION]
   v4 daily nogate   -> SQUEEZE bare
-  v5 COMBO          -> 50/50 capital: squeeze-daily + fade-hourly [PRODUCTION
-                        PAIR: SR 5.21, P0 0%, maxDD -9.7%, worst month -0.2%]
+  v5 COMBO          -> 60/40 capital: fade-hourly + squeeze-daily [PRODUCTION
+                        PAIR: SR 5.73, P0 0%, maxDD -9.3%, worst month -0.5%]
 
 Run:  ./venv/bin/python backtests/best4.py            # 5-variant table
       ./venv/bin/python backtests/best4.py --matrices # + reference matrix
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     fade_net, _, rc_f = fade_sim3(touch=True, cooldown_h=12)
     sq = FS.sim(squeeze2(), False, None, SQ_OVER)
     sq_bare = FS.sim(squeeze2(), False, None)
-    combo = 0.5 * sq["net"] + 0.5 * fade_net
+    combo = 0.6 * fade_net + 0.4 * sq["net"]
 
     print("## MAIN STRATEGY — 5 variants (each at its best)")
     print("| variant | strategy | SR(bar) | daily-block CI | ret | maxDD |")
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     row("v3 daily", "SQUEEZE mid-exit + overlays (PRODUCTION)",
         sq["net"], sq["n"])
     row("v4 daily nogate", "SQUEEZE mid-exit bare", sq_bare["net"], sq_bare["n"])
-    row("v5 COMBO 50/50", "production pair (v3 + v2)", combo)
+    row("v5 COMBO 60/40", "production pair (v2 + v3)", combo)
     half = len(combo) // 2
     for name, seg in (("H1", combo.iloc[:half]), ("H2", combo.iloc[half:])):
         lo, hi, pn = bootstrap_sharpe_ci(seg)

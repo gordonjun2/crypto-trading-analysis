@@ -38,6 +38,25 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+FINAL VERDICT (2026-09-28, round 20 — squeeze structure + pair weights).
+ADOPTED 60/40 PAIR TILT: fade/squeeze 60/40 dominates 50/50 on every split
+(full 5.73 vs 5.21, H1 4.26/3.78, H2 7.16/6.62, train 4.75/4.20,
+test 7.21/6.69; DD -9.3% vs -9.7%; worst month -0.5%) — books are
+uncorrelated and fade is the stronger book; inverse-vol a-priori agrees.
+REJECTED: squeeze 50d-SMA trend alignment (1.20 flat); trigger volume
+>= 1.5x (0.39 — no volume signal exists in squeeze breakouts: 3x family
+fail, <= 0.8x dry-up fail, 1.5x fail). 12h state grid INVALID as tested
+(12h resample breaks the hourly causal mapping in _states_to_signals ->
+lookahead; parked, needs shift-by-grid alignment before any verdict).
+
+FINAL VERDICT (2026-09-28, round 19 — FADE microstructure round 2). ALL
+FAIL: fatigue filter (skip 2+/3+ closes in 48h) — identical book, cooldown
+12h already subsumes it; time-based tranches 25%@18h/12h (5.54/5.44, worse
+DD — retrace-based exits already optimal); pump-bar shape (close-low)/range
+>= 0.7 hurts (5.22), <= 0.3 has only 2 trades in 24m (99.7% of 5xATR pump
+bars close in the top 30% of their range); staggered entry flat (5.97,
+lower ret).
+
 FINAL VERDICT (2026-09-27, round 15 — PRODUCTION v5). 3-TRANCHE EXIT:
 FADE v5 = spike >= 5xATR + vol >= 3x, top-200 alt -> FADE SHORT; realize
 50% at 50% retracement, 25% at 75%, 25% rides to origin; cap 42h; ivol.
