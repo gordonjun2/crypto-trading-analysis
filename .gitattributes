@@ -1,2 +1,4 @@
 saved_data_12m/** filter=lfs diff=lfs merge=lfs -text
 saved_data_24m/** filter=lfs diff=lfs merge=lfs -text
+saved_data/binance/** filter=lfs diff=lfs merge=lfs -text
+saved_data_live/binance/** filter=lfs diff=lfs merge=lfs -text
