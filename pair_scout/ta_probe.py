@@ -355,10 +355,12 @@ def build_probe_rows(cfg: AppConfig, data_dir: str | None = None,
                 tr.hedge_exit_px = float(closes[tr.hedge_sym].iloc[last_bar_i])
 
     open_syms = {t.sym for t in trades if t.state == "open"}
-    # gate: only Score > SCORE_GATE calls are tracked, and the book is capped
-    # at max_slots concurrent positions (champion sizing) — best Score first
+    # gate: only Score > SCORE_GATE calls are tracked, blowoffs excluded, and
+    # the book is capped at max_slots concurrent positions — best Score first
     gated = sorted(
-        (r for r in new_rows if (r.confidence or 0) > SCORE_GATE),
+        (r for r in new_rows
+         if (r.confidence or 0) > SCORE_GATE
+         and not (r.mom24 is not None and abs(r.mom24) > BLOWOFF_MAX)),
         key=lambda r: (-(r.confidence or 0), r.sym),
     )
     opened_syms: set[str] = set()
@@ -394,15 +396,18 @@ def build_probe_rows(cfg: AppConfig, data_dir: str | None = None,
 
 
 SCORE_GATE = 80  # only calls above this Score are shown/tracked (validated: 80-90 band = 92% positive months, best consistency)
+BLOWOFF_MAX = 0.25  # skip entries with |24h move| > 25% (exhausted thrusts; validated 2026-09-26: improves SR on both cadences)
 MAX_HOLD_DAYS = MAX_HOLD_BARS // BPD  # 7d time stop
 HEDGE_OPTIONS = 3  # hedge candidates shown per side
 
-# 12m backtest Sharpe (annualized, daily returns) — refresh via backtests/*.py
-# hourly = 8-slot champion book, decisions every bar (theoretical best case)
-# daily  = Score>80 tracker book, decisions only at 10:00 SGT (your cadence)
-BACKTEST_SR_HOURLY = "~3"
-BACKTEST_SR_DAILY = "0.9"
-BACKTEST_SR_DAILY_8SLOT = "0.3"
+# 12m backtest, truthful accrual + CAUSAL 4h signals (no lookahead) —
+# backtests/champion_honest.py (2026-09-26). Techniques: blowoff + ivol +
+# voltarget + riskoff (halve new entries while book DD > 20%).
+# Hourly cadence: NO edge for any family (old numbers were a timing artifact).
+# Daily 10:00 SGT 8-slot gated book: CI [-0.06,0.58], P0 9%, +33%/yr, DD -19%
+# (halves 0.88/1.55); no-gate variant: CI [0.00,0.60], P0 5%, +54%/yr, DD -26%
+BACKTEST_SR_HOURLY = "no edge"
+BACKTEST_SR_DAILY = "1.3"
 
 
 def _conf_of(r) -> int:
@@ -557,9 +562,8 @@ def build_message(new_rows, open_trades, closed_trades, hedges, opened_syms,
         blocks.append("📋 <b>Book</b> — " + " · ".join(book_parts)
                       + ("\n" + book_line2 if book_line2 else ""))
     blocks.append(
-        f"📊 <b>Backtest SR</b> (12m): {BACKTEST_SR_HOURLY} 8-slot book "
-        f"(hourly) · {BACKTEST_SR_DAILY} tracker @10:00 · "
-        f"{BACKTEST_SR_DAILY_8SLOT} 8-slot @10:00"
+        f"📊 <b>Backtest</b> (12m, no lookahead): {BACKTEST_SR_HOURLY} hourly · "
+        f"SR ~{BACKTEST_SR_DAILY} 8-slot @10:00 (+33%/yr, DD −19%)"
     )
     gated = [r for r in new_all if (r.confidence or 0) > SCORE_GATE]
     opened = [r for r in new_all if r.sym in opened_syms]

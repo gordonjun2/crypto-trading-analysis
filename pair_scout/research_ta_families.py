@@ -190,6 +190,13 @@ def _states_to_signals(states_long: pd.DataFrame, exit_long: pd.DataFrame,
         le = exit_long[sym].reindex(la.index).fillna(True)
         sa = states_short[sym].reindex(la.index).fillna(False)
         se = exit_short[sym].reindex(la.index).fillna(True)
+        # CAUSAL: a 4h state is computed from the bar's CLOSE and is only
+        # actionable after the bar ends. resample labels bars by their START,
+        # so shift one 4h label: the state of bar [08:00,12:00) first appears
+        # at 12:00, and the sim enters at the close of the first hourly bar
+        # at-or-after that (13:00) — executable, no lookahead.
+        la, le = la.shift(1), le.shift(1)
+        sa, se = sa.shift(1), se.shift(1)
         out[sym] = tuple(
             s.reindex(idx_1h, method="ffill").fillna(False).astype(bool)
             for s in (la, le, sa, se)
