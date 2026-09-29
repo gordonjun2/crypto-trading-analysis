@@ -335,7 +335,7 @@ def sim(sig, hourly, gate, tech=frozenset()):
     expct = [(t["exit_px"] / t["px0"] - 1.0 if t["dir"] == "LONG"
               else t["px0"] / max(t["exit_px"], 1e-12) - 1.0) for t in trades]
     wins = sum(1 for e in expct if e > 0)
-    return {"net": net_net, "n": len(trades),
+    return {"net": net_net, "n": len(trades), "trades": trades,
             "expct": float(np.mean(expct)) if expct else 0.0,
             "win": wins / len(trades) if trades else 0.0}
 

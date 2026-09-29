@@ -38,6 +38,24 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+FINAL VERDICT (2026-09-29, round 31 — LEVERAGE). ADOPTED v9 LEVERED
+overlay (user directive: 5x, no liquidation, stop-loss mandatory).
+Evidence: naive 5x = DD -68.6% (worst trade -77% NAV). ATR stops are
+MARGIN-UNSAFE at leverage (6xATR stop on a low-ATR alt ~ 6% away, gapped
+to -156% NAV) — fixed-% stops only; gaps modeled at max/min(prev close,
+stop). SQUEEZE @5x structurally broken (daily-book stop churn, DD
+-72..-95% even with hourly stops) -> capped @2x with hourly intrabar 5%
+stop (daily-bar stops alone let trades run to -29% adverse). FADE v9 @5x:
+stop +15% + CLUSTER GATE (no new entries when >= 3 simultaneous spikes —
+squeeze days gap stops in clusters; gate IMPROVES SR 4.47 -> 4.58, DD
+-52.4% -> -40.9%); breakers DEAD (sit out the recovery bounce: DD
+-72..-75%); slots caps marginal; stop-cool 48h no-op. CLIM v9 @5x: ATR
+trail (effective stop already) + floor -6%. TRIO levered: SR 4.79,
++310%/yr, DD -25.0%, 21/23 months; splits H1 3.42 / H2 6.02 / train
+5.44 / test 3.57; 12m xcheck 5.16 (DD -30.4%). Gross NAV mean 0.88 /
+p95 2.33 / max 4.86. Worst trade -9.4% NAV; max adverse 15% << 20%
+5x-liq point -> liquidation impossible. (iterate31.py; best4.py --levered)
+
 FINAL VERDICT (2026-09-29, rounds 29-30 — long-hunt exhaustion). CLIM v1
 STANDS UNCHANGED (production v8). Round 29: trail plateau 0.75-1.25x all
 ~1.44 (flat); TP tranche 50% @ +1/1.5xATR neutral-positive (1.48, not
