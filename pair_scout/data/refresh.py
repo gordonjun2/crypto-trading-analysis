@@ -117,13 +117,10 @@ def refresh_pair(symbol: str, interval: str, bars: int, dir_path: str | Path,
     if not end_ms:
         # align every pair on the last closed candle (see fetch_klines_paginated)
         end_ms = last_closed_bar_ms(interval)
-    raw = fetch_klines_paginated(symbol, interval, bars, end_ms) if bars > MAX_PER_REQUEST else None
-    if raw is None:
-        # small request: use the original single-shot fetcher
-        raw = get_binance_perpetual_futures_candlestick_data(
-            symbol, interval, str(end_ms) if end_ms else "", bars
-        )
-        raw = [[c[0], c[1], c[2], c[3], c[4], c[5]] for c in raw]
+    # ALWAYS use the paginated fetcher: it backs off on 429/418. The legacy
+    # single-shot fetcher sys.exits on rate limits and kills whole runs
+    # (2026-09-29 incident: mass failures mid-refresh).
+    raw = fetch_klines_paginated(symbol, interval, bars, end_ms)
     if not raw:
         logger.warning("%s: no candlestick data returned", symbol)
         return 0
