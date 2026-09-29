@@ -38,6 +38,28 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+FINAL VERDICT (2026-09-29, rounds 27-28 — LONG-book hunt). ADOPTED CLIM v1
+(first validated LONG book) + PRODUCTION TRIO v8 (60/25/15):
+- Round 27 ALL DEAD (dump side confirmed edgeless): dump-fade LONG mirror
+  raw -0.09 / sell-climax veto -0.01 / join-flow -0.48; CVD momentum long
+  -0.13; isolated 4h sell-climax long -0.71.
+- Round 28a EVENT STUDY: spike-bar forward drift by tf — mid-tf [0.44,0.58)
+  drifts DOWN (-0.66% @6h = fade edge), high-tf [0.58,0.72) drifts UP
+  (+1.74% @6h, decays by 24h) = CONTINUATION. tf >= 0.72 buckets are
+  stale-price illiquid prints (untradeable, ~0.00%).
+- CLIM v1: JOIN buy climaxes (same 5xATR + 3x vol spike as FADE, tf >= 0.60),
+  LONG, ATR-trail 1x, cap 24h, ivol: SR 1.44 P0 2% +7%/yr DD -2.5% on 51
+  trades; splits H1 0.84 / H2 1.87, train 0.71 / test 2.14; plateau tf
+  0.55-0.65 and trail 1.0-1.5x all positive; k4 power variants similar.
+  Small but real — capped at 15% weight.
+- TRIO 60/25/15 (FADE + SQUEEZE + CLIM): SR 6.42, +120%/yr, DD -8.9%,
+  22/23 months, 12m xcheck 6.95 — beats the 60/40 pair (6.02) on EVERY
+  split (H1 4.90/4.26, H2 7.88/7.16, train 5.32/4.75, test 8.04/7.21) with
+  lower DD. Rejected variants: smooth flow-sizing (exposure scaling only),
+  climX vol-scaled weights (more machinery, marginal SR 6.60 vs simpler).
+- Live: spike probe now routes by flow (tf < 0.60 -> FADE short alert,
+  tf >= 0.60 -> CLIM long alert, 2 clim slots, trail/cap tracking).
+
 FINAL VERDICT (2026-09-29, round 25 — ORDERFLOW / new data grounds).
 ADOPTED FADE v7 (orderflow veto): new 24m dataset saved_data_24m_flow
 (653 pairs, taker-buy quote volume from klines — same grid as panel).

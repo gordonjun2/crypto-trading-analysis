@@ -1,5 +1,39 @@
 {
- "alerts": {},
- "open": {},
- "closed": []
+ "alerts": {
+  "TAKEUSDT": "2026-09-29T05:00:00",
+  "GRVTUSDT": "2026-09-29T06:00:00",
+  "\u5e01\u5b89\u4eba\u751fUSDT": "2026-09-29T07:00:00"
+ },
+ "open": {
+  "GRVTUSDT": {
+   "entry_px": 0.2096,
+   "origin": 0.2055,
+   "opened": "2026-09-29T06:00:00",
+   "pump": 0.019951338199513557
+  }
+ },
+ "closed": [
+  {
+   "entry_px": 0.06274,
+   "origin": 0.0583,
+   "opened": "2026-09-29T05:00:00",
+   "pump": 0.07615780445969134,
+   "sym": "TAKEUSDT",
+   "exit_reason": "origin",
+   "exit_date": "2026-09-29T06:00:00",
+   "pnl": 0.07615780445969134
+  },
+  {
+   "entry_px": 0.5193,
+   "origin": 0.5016,
+   "opened": "2026-09-29T07:00:00",
+   "pump": 0.03528708133971281,
+   "sym": "\u5e01\u5b89\u4eba\u751fUSDT",
+   "exit_reason": "origin",
+   "exit_date": "2026-09-29T07:00:00",
+   "pnl": 0.03528708133971281
+  }
+ ],
+ "clim_open": {},
+ "clim_closed": []
 }

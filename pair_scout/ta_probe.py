@@ -573,7 +573,7 @@ def build_message(new_rows, open_trades, closed_trades, hedges, opened_syms,
     blocks.append(
         f"📊 <b>Backtest</b> (24m, no lookahead, fees+funding): squeeze daily "
         f"SR ~{BACKTEST_SR_DAILY} · FADE v6 hourly {BACKTEST_SR_HOURLY} · "
-        f"pair 60/40 SR 5.73 (+119%/yr, DD −9.3%)"
+        f"trio 60/25/15 SR 6.42 (+120%/yr, DD −8.9%)"
     )
     gated = [r for r in new_all if (r.confidence or 0) > SCORE_GATE]
     opened = [r for r in new_all if r.sym in opened_syms]
@@ -662,6 +662,8 @@ FADE_CAP_H = 42  # position time cap (hours)
 FADE_UNIV = 200  # top-N dollar-volume universe
 FADE_SLOTS = 8  # max concurrent fade calls
 FADE_TF_MAX = 0.60  # v7 orderflow veto: skip buy-climax pumps (tf >= 60%)
+CLIM_SLOTS = 2  # max concurrent CLIM long calls (15% book)
+CLIM_CAP_H = 24  # CLIM time cap (hours)
 
 
 def _fade_state_path(data_dir: str | None, cfg: AppConfig) -> Path:
@@ -720,6 +722,8 @@ def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
 
     state = _fade_load_state(_fade_state_path(data_dir, cfg))
     alerts, open_calls, closed = state["alerts"], state["open"], state["closed"]
+    clim_open = state.get("clim_open", {})
+    clim_closed = state.get("clim_closed", [])
 
     # 1) closures on this bar (origin limit = wick touch; else 42h cap)
     closed_now = []
@@ -742,8 +746,31 @@ def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
             del open_calls[sym]
             closed_now.append((sym, pnl, "42h cap"))
 
-    # 2) new spike events on the last closed bar
-    new_calls = []
+    # 1b) CLIM (long) closures: close < high-since-entry - 1xATR, else 24h cap
+    clim_closed_now = []
+    for sym in list(clim_open):
+        o = clim_open[sym]
+        age_h = (now_ts - datetime.fromisoformat(o["opened"])).total_seconds() / 3600
+        px_now = float(closes[sym].iloc[last])
+        o["hi"] = max(o.get("hi", o["entry_px"]),
+                      float(panel.frames[sym]["High"].iloc[last]))
+        entry = o["entry_px"]
+        if px_now < o["hi"] - o["atr0"]:
+            pnl = px_now / entry - 1.0
+            clim_closed.append({**o, "sym": sym, "exit_reason": "trail",
+                                "exit_date": now_ts.isoformat(), "pnl": pnl})
+            del clim_open[sym]
+            clim_closed_now.append((sym, pnl, "ATR trail"))
+        elif age_h >= CLIM_CAP_H:
+            pnl = px_now / entry - 1.0
+            clim_closed.append({**o, "sym": sym, "exit_reason": "cap",
+                                "exit_date": now_ts.isoformat(), "pnl": pnl})
+            del clim_open[sym]
+            clim_closed_now.append((sym, pnl, "24h cap"))
+
+    # 2) new spike events on the last closed bar — routed by flow:
+    #    tf >= 0.60 (buy climax) -> CLIM long; else -> FADE short
+    new_calls, new_clims = [], []
     for sym in panel.pairs:
         if sym == BTC or sym not in in_u.index or not bool(in_u[sym]):
             continue
@@ -756,16 +783,19 @@ def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
         vol_now = float(panel.frames[sym]["Volume"].iloc[last])
         if vol_now < FADE_VOLX * v:
             continue
-        # v7 orderflow veto: aggressive-buy share of the event bar (skip
-        # buy climaxes — the fade edge is NEGATIVE there, 24m SR -1.42)
+        tfe = None
         tf_col = panel.frames[sym].get("Taker Buy USDT")
         if tf_col is not None:
             tfe = float(tf_col.iloc[last])
-            if np.isfinite(tfe) and vol_now > 0 and tfe / vol_now >= FADE_TF_MAX:
-                continue
+            if not np.isfinite(tfe):
+                tfe = None
         last_alert = alerts.get(sym)
         if last_alert and (now_ts - datetime.fromisoformat(last_alert)
                            ).total_seconds() < FADE_COOLDOWN_H * 3600:
+            continue
+        if tfe is not None and tfe >= FADE_TF_MAX:
+            if len(clim_open) < CLIM_SLOTS:
+                new_clims.append((sym, r, a, vol_now / v, tfe))
             continue
         new_calls.append((sym, r, a, vol_now / v))
     new_calls.sort(key=lambda x: -x[1])
@@ -782,12 +812,24 @@ def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
                            "opened": now_ts.isoformat(), "pump": r}
         opened.append((sym, r, a, vx, entry, origin))
 
+    clim_opened = []
+    for sym, r, a, vx, tfe in new_clims:
+        entry = float(closes[sym].iloc[last])
+        alerts[sym] = now_ts.isoformat()
+        clim_open[sym] = {"entry_px": entry, "atr0": a,
+                          "hi": float(panel.frames[sym]["High"].iloc[last]),
+                          "opened": now_ts.isoformat(), "pump": r, "tf": tfe}
+        clim_opened.append((sym, r, a, vx))
+
     Path(_fade_state_path(data_dir, cfg)).parent.mkdir(parents=True, exist_ok=True)
     trimmed = closed[-60:]
+    clim_trimmed = clim_closed[-60:]
     _fade_state_path(data_dir, cfg).write_text(json.dumps(
-        {"alerts": alerts, "open": open_calls, "closed": trimmed}, indent=1))
+        {"alerts": alerts, "open": open_calls, "closed": trimmed,
+         "clim_open": clim_open, "clim_closed": clim_trimmed}, indent=1))
 
-    if only_signals and not opened and not closed_now:
+    if only_signals and not opened and not closed_now \
+            and not clim_opened and not clim_closed_now:
         return []
 
     # marked pnl of open calls (realized tranche estimate: assume TP1/TP2
@@ -809,10 +851,19 @@ def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
         open_lines.append((sym, pnl))
 
     blocks = [
-        f"⚡ <b>FADE Probe</b> — {now_ts:%d %b %Y %H:%M} UTC\n"
-        f"spike >{FADE_K:.0f}×24h-ATR · vol >{FADE_VOLX:.0f}× · top-{universe_top} "
-        f"· 12h cooldown · cap {FADE_CAP_H}h · {len(open_calls)}/{max_slots} open",
+        f"⚡ <b>Spike Probe</b> — {now_ts:%d %b %Y %H:%M} UTC\n"
+        f"spike >{FADE_K:.0f}×24h-ATR · vol >{FADE_VOLX}× · top-{universe_top} "
+        f"· flow-routed: tf <{FADE_TF_MAX:.0%} → FADE short · ≥ → CLIM long "
+        f"· {len(open_calls)}/{max_slots} fade · {len(clim_open)}/{CLIM_SLOTS} clim",
     ]
+    if clim_opened:
+        lines = [f"🟢 <b>NEW — {len(clim_opened)} CLIM long"
+                 f"{'s' if len(clim_opened) > 1 else ''}</b>"]
+        for sym, r, a, vx in clim_opened:
+            lines.append(f"🟢 LONG <b>{html.escape(sym)}</b> · pump {r:+.1%} "
+                         f"({r / a:.1f}×ATR · {vx:.1f}×vol · buy climax)\n"
+                         f"   trail 1×24h-ATR · 24h cap · small size (15% book)")
+        blocks.append("\n".join(lines))
     if opened:
         lines = [f"🆕 <b>NEW — {len(opened)} fade short"
                  f"{'s' if len(opened) > 1 else ''}</b>"]
@@ -846,9 +897,29 @@ def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
         for sym, p, why in sorted(closed_now, key=lambda x: -x[1]):
             blocks[-1] += (f"\n{_pnl_arrow(p)} <b>{html.escape(sym)}</b> "
                            f"{p:+.1%} · {why}")
+    if clim_open:
+        pnls = [(float(closes[s]) / o["entry_px"] - 1.0)
+                for s, o in clim_open.items()]
+        wins = sum(1 for p in pnls if p > 0)
+        blocks.append(f"⏳ <b>OPEN clim</b> — {len(clim_open)} · {wins}W/"
+                      f"{len(clim_open) - wins}L · avg "
+                      f"{sum(pnls) / len(clim_open):+.1%}")
+        for (s, o), p in sorted(zip(clim_open.items(), pnls),
+                                key=lambda x: -x[1]):
+            blocks[-1] += f"\n{_pnl_arrow(p)} <b>{html.escape(s)}</b> {p:+.1%}"
+    if clim_closed_now:
+        pnls = [p for _, p, _ in clim_closed_now]
+        wins = sum(1 for p in pnls if p > 0)
+        blocks.append(f"✅ <b>CLOSED clim</b> — {len(clim_closed_now)} · "
+                      f"{wins}W/{len(clim_closed_now) - wins}L · avg "
+                      f"{sum(pnls) / len(clim_closed_now):+.1%}")
+        for sym, p, why in sorted(clim_closed_now, key=lambda x: -x[1]):
+            blocks[-1] += (f"\n{_pnl_arrow(p)} <b>{html.escape(sym)}</b> "
+                           f"{p:+.1%} · {why}")
     blocks.append(
-        "⚠️ Analysis only — no orders · ladder = resting limits (wick fills) · "
-        "25% rides to origin · 42h market cap · SHORT only (v6 = spike fades)"
+        "⚠️ Analysis only — no orders · FADE = resting-limit ladder (wick "
+        "fills), 25% rides to origin, 42h market cap · CLIM = trail 1×ATR, "
+        "24h cap · fade SHORT only · clim LONG only"
     )
     chunks: list[str] = []
     cur = ""
