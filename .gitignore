@@ -169,3 +169,7 @@ private.ini
 
 # 24-month research dataset (427MB, refetchable via loader+fetch_funding24)
 saved_data_24m/
+
+# Flow dataset: committed once as ordinary git objects (LFS quota would
+# overflow); rebuildable via backtests/fetch_flow24.py — no future churn
+saved_data_24m_flow/
