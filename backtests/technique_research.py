@@ -38,6 +38,20 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+FINAL VERDICT (2026-09-29, rounds 29-30 — long-hunt exhaustion). CLIM v1
+STANDS UNCHANGED (production v8). Round 29: trail plateau 0.75-1.25x all
+~1.44 (flat); TP tranche 50% @ +1/1.5xATR neutral-positive (1.48, not
+adopted — noise nudge); buy$ >= 2x filter redundant with tf+vol; k6 worse
+(0.65); post-climax pullback entry dead (0.28); 4h buy-climax long dead
+(0.29 P0 37%, DD -32% — ignition continuation is an HOURLY phenomenon).
+Round 30 ALL DEAD: squeeze-LONG rescue with CLIM-style trails -0.26
+(DD -72% — the long squeeze side is unrecoverable in any exit); BTC
+Donchian 20d long -1.92 P0 100% (one 2024 breakout buried in 2y of chop;
+fresh-cross re-entry fixed, still dead); BTC+ETH -0.93. LONG-SPACE STATUS:
+CLIM v1 is the only long edge in this data; dump-side, capitulation,
+momentum, trend-following, and squeeze-long all fail. Next long catalysts
+= forward probe data + derivs archive (OI signatures ~30 days out).
+
 FINAL VERDICT (2026-09-29, rounds 27-28 — LONG-book hunt). ADOPTED CLIM v1
 (first validated LONG book) + PRODUCTION TRIO v8 (60/25/15):
 - Round 27 ALL DEAD (dump side confirmed edgeless): dump-fade LONG mirror
