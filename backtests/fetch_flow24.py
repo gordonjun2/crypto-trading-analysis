@@ -35,7 +35,7 @@ def save_flow(rows, pair: str) -> int:
         "Open": pd.to_numeric(df[1]), "High": pd.to_numeric(df[2]),
         "Low": pd.to_numeric(df[3]), "Close": pd.to_numeric(df[4]),
         "Volume in USDT": pd.to_numeric(df[7]),
-        "Taker Buy USDT": pd.to_numeric(df[9]),
+        "Taker Buy USDT": pd.to_numeric(df[10]),
     }).sort_values("Open Time").reset_index(drop=True)
     meta = {"pair": pair, "start_datetime": out["Open Time"].iloc[0],
             "end_datetime": out["Open Time"].iloc[-1]}
