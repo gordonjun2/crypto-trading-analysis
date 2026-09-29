@@ -70,11 +70,11 @@
    "hedge_dir": "SHORT",
    "hedge_entry_px": 0.12385,
    "conf": 90,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-28T01:00:00",
+   "exit_px": 0.3588,
+   "hedge_exit_px": 0.07665,
+   "exit_reason": "flip"
   },
   {
    "sym": "GRASSUSDT",
@@ -85,11 +85,11 @@
    "hedge_dir": "SHORT",
    "hedge_entry_px": 0.12385,
    "conf": 88,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-28T01:00:00",
+   "exit_px": 0.6548,
+   "hedge_exit_px": 0.07665,
+   "exit_reason": "flip"
   },
   {
    "sym": "LSKUSDT",
@@ -100,11 +100,11 @@
    "hedge_dir": "LONG",
    "hedge_entry_px": 0.08594,
    "conf": 83,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-28T01:00:00",
+   "exit_px": 0.31254,
+   "hedge_exit_px": 0.06428,
+   "exit_reason": "flip"
   },
   {
    "sym": "PROMUSDT",
@@ -145,11 +145,11 @@
    "hedge_dir": "SHORT",
    "hedge_entry_px": 0.07665,
    "conf": 97,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-28T01:00:00",
+   "exit_px": 1.2627,
+   "hedge_exit_px": 0.07665,
+   "exit_reason": "flip"
   },
   {
    "sym": "ONDOUSDT",
@@ -160,11 +160,11 @@
    "hedge_dir": "SHORT",
    "hedge_entry_px": 0.07665,
    "conf": 96,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-28T01:00:00",
+   "exit_px": 0.5729,
+   "hedge_exit_px": 0.07665,
+   "exit_reason": "flip"
   },
   {
    "sym": "BTWUSDT",
@@ -190,11 +190,11 @@
    "hedge_dir": "LONG",
    "hedge_entry_px": 257.12,
    "conf": 91,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-28T01:00:00",
+   "exit_px": 0.029936,
+   "hedge_exit_px": 257.12,
+   "exit_reason": "flip"
   },
   {
    "sym": "NEARUSDT",
@@ -205,11 +205,11 @@
    "hedge_dir": "SHORT",
    "hedge_entry_px": 0.07665,
    "conf": 88,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-28T01:00:00",
+   "exit_px": 5.305,
+   "hedge_exit_px": 0.07665,
+   "exit_reason": "flip"
   }
  ]
 }

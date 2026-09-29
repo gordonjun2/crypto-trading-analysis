@@ -1,18 +1,18 @@
-"""TA channel probe: scan the point-in-time universe for Donchian entries and
-deliver them to Telegram.
+"""TA channel probe: scan the point-in-time universe and deliver signals to
+Telegram.
 
-This is the live paper-trade probe for the pass-9/10 research (dual-direction
-Donchian 20d/10d over a causal top-30 volume universe, <=7d hold, 5% stop,
-unhedged). It is an ALERT system only — no orders are placed.
+Live paper-trade probe for the PRODUCTION v6 books (backtests/best4.py,
+2026-09-28). ALERT system only — no orders are placed.
 
-UX (one message per run, phone-first):
-  - every record is 2 short lines (<= ~35 chars), no tables/monospace:
-    NEW:    "🟢 LONG SYM · Score N" + hedge line
-    OPEN:   "📈 SYM +pnl%" + "🛡 side coin · net +pnl%" (⏰ = past 7d)
-    CLOSED: "📈 SYM net +pnl% · reason"
-  - top-10 NEW calls by Score; Book summary strip up top; legend at the foot
-  - hedge is display-only (iter-10 verdict: run unhedged); net = main + hedge 50/50
-  - heartbeat when there are no signals (suppress with --only-signals)
+Books:
+  - SQUEEZE v2 (daily 10:00 SGT message): BB(20d) inside Keltner(14d, 2xATR)
+    compression, breakout entries, mid-band exit state, 24m SR 1.24
+    (+34%/yr, DD -17.5%). Journal tracks flip/5%-stop/7d-cap exits.
+  - FADE v6 (hourly `fade-probe`): SHORT 1h spikes > 5x 24h-ATR with volume
+    > 3x 24h-mean (top-200 alts), 12h cooldown, 3-tranche resting-limit exit
+    (50% @ 50% retrace, 25% @ 75%, 25% @ origin), cap 42h. 24m SR 6.00
+    (+176%/yr, DD -13.7%).
+  - PAIR 60/40 fade/squeeze: SR 5.73, +119%/yr, DD -9.3% (PSAR retired).
 
 Run daily after the 00:00 UTC candle close. `--send` delivers; default is
 dry-run (prints the exact payload).
@@ -33,7 +33,10 @@ import pandas as pd
 from pair_scout.config import AppConfig
 from pair_scout.data.funding import load_funding  # noqa: F401 (parity with research)
 from pair_scout.data.loader import load_panel
-from pair_scout.research_ta_families import psar_signals_panel
+from pair_scout.research_ta_families import (
+    psar_signals_panel,
+    squeeze_signals_panel,
+)
 from pair_scout.research_ta_general import donchian_signals
 
 logger = logging.getLogger(__name__)
@@ -149,7 +152,9 @@ def _scan(cfg: AppConfig, data_dir: str | None = None, universe_top: int = UNIV_
         axis=1, ascending=False
     )
     in_universe = (univ_rank <= universe_top) & univ_rank.notna()
-    if family == "psar":
+    if family == "squeeze":
+        signals = squeeze_signals_panel(panel)
+    elif family == "psar":
         signals = psar_signals_panel(panel)
     else:
         signals = donchian_signals(closes)
@@ -395,19 +400,17 @@ def build_probe_rows(cfg: AppConfig, data_dir: str | None = None,
             opened_syms, skipped_slots, panel, idx)
 
 
-SCORE_GATE = 80  # only calls above this Score are shown/tracked (validated: 80-90 band = 92% positive months, best consistency)
-BLOWOFF_MAX = 0.25  # skip entries with |24h move| > 25% (exhausted thrusts; validated 2026-09-26: improves SR on both cadences)
+SCORE_GATE = 80  # only calls above this Score are shown/tracked
+BLOWOFF_MAX = 0.25  # skip entries with |24h move| > 25% (exhausted thrusts)
 MAX_HOLD_DAYS = MAX_HOLD_BARS // BPD  # 7d time stop
 HEDGE_OPTIONS = 3  # hedge candidates shown per side
 
-# 12m backtest, truthful accrual + CAUSAL 4h signals (no lookahead) —
-# backtests/champion_honest.py (2026-09-26). Techniques: blowoff + ivol +
-# voltarget + riskoff (halve new entries while book DD > 20%).
-# Hourly cadence: NO edge for any family (old numbers were a timing artifact).
-# Daily 10:00 SGT 8-slot gated book: CI [-0.06,0.58], P0 9%, +33%/yr, DD -19%
-# (halves 0.88/1.55); no-gate variant: CI [0.00,0.60], P0 5%, +54%/yr, DD -26%
-BACKTEST_SR_HOURLY = "no edge"
-BACKTEST_SR_DAILY = "1.3"
+# 24m backtests (no lookahead, fees+funding), backtests/best4.py + iterate17-18
+# (2026-09-28). SQUEEZE v2 daily: SR 1.24, CI [0.01,0.49] P0 4%, +34%/yr,
+# DD -17.5%. FADE v6 hourly: SR 6.00, P0 0%, +176%/yr, DD -13.7%.
+# PAIR 60/40: SR 5.73, +119%/yr, DD -9.3%. (PSAR retired: fails 24m.)
+BACKTEST_SR_HOURLY = "FADE v6 6.0"
+BACKTEST_SR_DAILY = "1.2"
 
 
 def _conf_of(r) -> int:
@@ -417,7 +420,12 @@ def _conf_of(r) -> int:
 def _reason_of(tr, family: str) -> str:
     reason = tr.exit_reason or ""
     if reason == "flip":
-        reason = "SAR flip" if family == "psar" else "channel flip"
+        if family == "squeeze":
+            reason = "mid-band exit"
+        elif family == "psar":
+            reason = "SAR flip"
+        else:
+            reason = "channel flip"
     elif reason == "stop":
         reason = "5% stop"
     elif reason == "time":
@@ -532,7 +540,8 @@ def build_message(new_rows, open_trades, closed_trades, hedges, opened_syms,
                   skipped_slots, panel, now: datetime,
                   universe_top: int = UNIV_TOP,
                   family: str = "psar", max_slots: int = 8) -> list[str]:
-    sig_desc = ("PSAR flips" if family == "psar" else "20d/10d crosses")
+    sig_desc = ("Squeeze breakouts (BB-in-KC, mid exit)" if family == "squeeze"
+                else "PSAR flips" if family == "psar" else "20d/10d crosses")
     last_px = {sym: float(px) for sym, px in panel.closes.iloc[-1].items()
                if np.isfinite(px)}
     new_all = sorted(new_rows, key=lambda r: (-_conf_of(r), r.sym))
@@ -562,8 +571,9 @@ def build_message(new_rows, open_trades, closed_trades, hedges, opened_syms,
         blocks.append("📋 <b>Book</b> — " + " · ".join(book_parts)
                       + ("\n" + book_line2 if book_line2 else ""))
     blocks.append(
-        f"📊 <b>Backtest</b> (12m, no lookahead): {BACKTEST_SR_HOURLY} hourly · "
-        f"SR ~{BACKTEST_SR_DAILY} 8-slot @10:00 (+33%/yr, DD −19%)"
+        f"📊 <b>Backtest</b> (24m, no lookahead, fees+funding): squeeze daily "
+        f"SR ~{BACKTEST_SR_DAILY} · FADE v6 hourly {BACKTEST_SR_HOURLY} · "
+        f"pair 60/40 SR 5.73 (+119%/yr, DD −9.3%)"
     )
     gated = [r for r in new_all if (r.confidence or 0) > SCORE_GATE]
     opened = [r for r in new_all if r.sym in opened_syms]
@@ -597,7 +607,7 @@ def build_message(new_rows, open_trades, closed_trades, hedges, opened_syms,
         "🟢 LONG · 🔴 SHORT · ⏰ >7d · 📈 gain · 📉 loss\n"
         "% = PnL since entry (24h = last-day move) · net = main + hedge 50/50\n"
         "⚠️ Analysis only — no orders · only Score >80 tracked · "
-        "exits: flip / 5% stop / 7d cap · size 1/3 per slot"
+        "exits: mid-band / 5% stop / 7d cap · size 1/3 per slot"
     )
 
     # chunk by whole block so <pre> tables never split across messages
@@ -639,4 +649,227 @@ def run_ta_probe(cfg: AppConfig, send: bool = False, data_dir: str | None = None
         logger.info("probe sent to Telegram")
     else:
         logger.info("dry-run: probe printed, not sent (use --send to deliver)")
+    return chunks
+
+
+# --------------------------------------------------------------------------
+# FADE v6 hourly probe (production v2 book — see docstring)
+# --------------------------------------------------------------------------
+FADE_K = 5.0  # spike threshold (x 24h ATR)
+FADE_VOLX = 3.0  # volume threshold (x 24h mean)
+FADE_COOLDOWN_H = 12  # same-symbol re-alert cooldown
+FADE_CAP_H = 42  # position time cap (hours)
+FADE_UNIV = 200  # top-N dollar-volume universe
+FADE_SLOTS = 8  # max concurrent fade calls
+
+
+def _fade_state_path(data_dir: str | None, cfg: AppConfig) -> Path:
+    return Path(data_dir or cfg.data.data_dir) / "fade_probe_state.json"
+
+
+def _fade_load_state(path: Path) -> dict:
+    if path.exists():
+        try:
+            return json.loads(path.read_text())
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("unreadable fade state %s (%s); fresh", path, exc)
+    return {"alerts": {}, "open": {}, "closed": []}
+
+
+def _fade_short_pnl(entry_px: float, px: float) -> float:
+    return entry_px / max(px, 1e-12) - 1.0
+
+
+def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
+                       only_signals: bool = False,
+                       universe_top: int = FADE_UNIV,
+                       max_slots: int = FADE_SLOTS) -> list[str]:
+    """One hourly pass: alert new FADE v6 shorts + track the tranche ladder.
+
+    Exit accounting mirrors the v6 sim: TP1/TP2 are resting limits filled on
+    wick touch (50% size at 50% retrace, 25% at 75%), the last 25% rides to
+    the origin limit; anything left closes at the 42h cap (market, at close).
+    PnL shown = realized-so-far + marked remainder."""
+    panel = load_panel(
+        cex=cfg.data.cex, interval="1h",
+        data_dir=data_dir or cfg.data.data_dir,
+        top_n_volume=658, min_history_bars=1000,
+        max_nan_fraction=cfg.data.max_nan_fraction,
+        trailing_volume_days=cfg.data.trailing_volume_days,
+    )
+    idx, closes = panel.index, panel.closes
+    last = len(idx) - 1
+    now_ts = idx[last].to_pydatetime()
+
+    dollar_vol = pd.DataFrame(
+        {s: panel.frames[s]["Volume"] * panel.frames[s]["Close"]
+         for s in panel.pairs}
+    )
+    rank = dollar_vol.rolling(30 * BPD).mean().rank(axis=1, ascending=False)
+    in_u = rank.iloc[last] <= universe_top
+
+    atr24, volma24 = {}, {}
+    for s in panel.pairs:
+        f = panel.frames[s]
+        pc = f["Close"].shift(1)
+        tr = pd.concat([f["High"] - f["Low"], (f["High"] - pc).abs(),
+                        (f["Low"] - pc).abs()], axis=1).max(axis=1)
+        atr24[s] = float(tr.iloc[last - BPD + 1: last + 1].mean())
+        volma24[s] = float(f["Volume"].iloc[last - BPD + 1: last + 1].mean())
+
+    state = _fade_load_state(_fade_state_path(data_dir, cfg))
+    alerts, open_calls, closed = state["alerts"], state["open"], state["closed"]
+
+    # 1) closures on this bar (origin limit = wick touch; else 42h cap)
+    closed_now = []
+    for sym in list(open_calls):
+        o = open_calls[sym]
+        age_h = (now_ts - datetime.fromisoformat(o["opened"])).total_seconds() / 3600
+        low_now = float(panel.frames[sym]["Low"].iloc[last])
+        px_now = float(closes[sym].iloc[last])
+        entry = o["entry_px"]
+        if low_now <= o["origin"]:
+            pnl = _fade_short_pnl(entry, o["origin"])
+            closed.append({**o, "sym": sym, "exit_reason": "origin",
+                           "exit_date": now_ts.isoformat(), "pnl": pnl})
+            del open_calls[sym]
+            closed_now.append((sym, pnl, "origin ✅"))
+        elif age_h >= FADE_CAP_H:
+            pnl = _fade_short_pnl(entry, px_now)
+            closed.append({**o, "sym": sym, "exit_reason": "cap",
+                           "exit_date": now_ts.isoformat(), "pnl": pnl})
+            del open_calls[sym]
+            closed_now.append((sym, pnl, "42h cap"))
+
+    # 2) new spike events on the last closed bar
+    new_calls = []
+    for sym in panel.pairs:
+        if sym == BTC or sym not in in_u.index or not bool(in_u[sym]):
+            continue
+        r = float(closes[sym].iloc[last] / closes[sym].iloc[last - 1] - 1.0)
+        a, v = atr24.get(sym), volma24.get(sym)
+        if not (np.isfinite(r) and a and v and np.isfinite(a) and np.isfinite(v)):
+            continue
+        if r <= FADE_K * a:
+            continue
+        vol_now = float(panel.frames[sym]["Volume"].iloc[last])
+        if vol_now < FADE_VOLX * v:
+            continue
+        last_alert = alerts.get(sym)
+        if last_alert and (now_ts - datetime.fromisoformat(last_alert)
+                           ).total_seconds() < FADE_COOLDOWN_H * 3600:
+            continue
+        new_calls.append((sym, r, a, vol_now / v))
+    new_calls.sort(key=lambda x: -x[1])
+
+    opened, skipped = [], 0
+    for sym, r, a, vx in new_calls:
+        if len(open_calls) >= max_slots:
+            skipped += 1
+            continue
+        entry = float(closes[sym].iloc[last])
+        origin = float(closes[sym].iloc[last - 1])
+        alerts[sym] = now_ts.isoformat()
+        open_calls[sym] = {"entry_px": entry, "origin": origin,
+                           "opened": now_ts.isoformat(), "pump": r}
+        opened.append((sym, r, a, vx, entry, origin))
+
+    Path(_fade_state_path(data_dir, cfg)).parent.mkdir(parents=True, exist_ok=True)
+    trimmed = closed[-60:]
+    _fade_state_path(data_dir, cfg).write_text(json.dumps(
+        {"alerts": alerts, "open": open_calls, "closed": trimmed}, indent=1))
+
+    if only_signals and not opened and not closed_now:
+        return []
+
+    # marked pnl of open calls (realized tranche estimate: assume TP1/TP2
+    # filled if the low ever touched their levels since entry)
+    open_lines = []
+    for sym, o in open_calls.items():
+        entry, origin = o["entry_px"], o["origin"]
+        span = entry - origin
+        since = panel.frames[sym]["Low"].loc[pd.Timestamp(o["opened"]):]
+        low_min = float(since.min()) if len(since) else entry
+        realized = 0.0
+        remaining = 1.0
+        for rf, sf in ((0.5, 0.5), (0.75, 0.25)):
+            if span > 0 and low_min <= origin + rf * span:
+                realized += sf * _fade_short_pnl(entry, origin + rf * span)
+                remaining -= sf
+        marked = _fade_short_pnl(entry, float(closes[sym].iloc[last]))
+        pnl = realized + remaining * marked
+        open_lines.append((sym, pnl))
+
+    blocks = [
+        f"⚡ <b>FADE Probe</b> — {now_ts:%d %b %Y %H:%M} UTC\n"
+        f"spike >{FADE_K:.0f}×24h-ATR · vol >{FADE_VOLX:.0f}× · top-{universe_top} "
+        f"· 12h cooldown · cap {FADE_CAP_H}h · {len(open_calls)}/{max_slots} open",
+    ]
+    if opened:
+        lines = [f"🆕 <b>NEW — {len(opened)} fade short"
+                 f"{'s' if len(opened) > 1 else ''}</b>"]
+        for sym, r, a, v, entry, origin in opened:
+            span = entry - origin
+            tps = ""
+            if span > 0:
+                t1 = origin + 0.5 * span
+                t2 = origin + 0.75 * span
+                tps = (f"\n   TP1 50% @ −{_fade_short_pnl(entry, t1):+.1%} · "
+                       f"TP2 25% @ −{_fade_short_pnl(entry, t2):+.1%} · "
+                       f"TP3 25% @ origin −{_fade_short_pnl(entry, origin):+.1%}")
+            lines.append(f"🔴 SHORT <b>{html.escape(sym)}</b> · pump {r:+.1%} "
+                         f"({r / a:.1f}×ATR · {vx:.1f}×vol){tps}")
+        if skipped:
+            lines.append(f"· {skipped} skipped — 8 slots full")
+        blocks.append("\n".join(lines))
+    if open_lines:
+        wins = sum(1 for _, p in open_lines if p > 0)
+        avg = sum(p for _, p in open_lines) / len(open_lines)
+        blocks.append(f"⏳ <b>OPEN</b> — {len(open_lines)} · {wins}W/"
+                      f"{len(open_lines) - wins}L · avg {avg:+.1%}")
+        for sym, p in sorted(open_lines, key=lambda x: -x[1]):
+            blocks[-1] += f"\n{_pnl_arrow(p)} <b>{html.escape(sym)}</b> {p:+.1%}"
+    if closed_now:
+        pnls = [p for _, p, _ in closed_now]
+        wins = sum(1 for p in pnls if p > 0)
+        blocks.append(f"✅ <b>CLOSED</b> — {len(closed_now)} · {wins}W/"
+                      f"{len(closed_now) - wins}L · avg "
+                      f"{sum(pnls) / len(closed_now):+.1%}")
+        for sym, p, why in sorted(closed_now, key=lambda x: -x[1]):
+            blocks[-1] += (f"\n{_pnl_arrow(p)} <b>{html.escape(sym)}</b> "
+                           f"{p:+.1%} · {why}")
+    blocks.append(
+        "⚠️ Analysis only — no orders · ladder = resting limits (wick fills) · "
+        "25% rides to origin · 42h market cap · SHORT only (v6 = spike fades)"
+    )
+    chunks: list[str] = []
+    cur = ""
+    for b in blocks:
+        candidate = f"{cur}\n\n{b}" if cur else b
+        if len(candidate) <= 3900:
+            cur = candidate
+            continue
+        chunks.append(cur)
+        cur = b
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
+def run_fade_probe(cfg: AppConfig, send: bool = False,
+                   data_dir: str | None = None, only_signals: bool = False,
+                   universe_top: int = FADE_UNIV,
+                   max_slots: int = FADE_SLOTS) -> list[str]:
+    chunks = build_fade_message(cfg, data_dir, only_signals, universe_top,
+                                max_slots)
+    if not chunks:
+        logger.info("no new fade signals or closures; suppressing message")
+        return []
+    if send:
+        from pair_scout.telegram import send_report_or_fail
+
+        send_report_or_fail(cfg.telegram_bot_token, cfg.telegram_group_id, chunks)
+        logger.info("fade probe sent to Telegram")
+    else:
+        logger.info("dry-run: fade probe printed, not sent (use --send)")
     return chunks

@@ -152,6 +152,32 @@ def cmd_ta_probe(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_fade_probe(args: argparse.Namespace) -> int:
+    from pair_scout.ta_probe import run_fade_probe
+
+    cfg = load_config(args.config)
+    data_dir = "saved_data_live"
+    if not args.skip_refresh:
+        from pair_scout.data.refresh import refresh_all
+
+        logger.info("refreshing live klines (%d bars/pair) into %s",
+                    args.bars, data_dir)
+        res = refresh_all(cfg.data.cex, "1h", args.bars, data_dir=data_dir)
+        ok = sum(1 for n in res.values() if n >= args.bars * 0.9)
+        logger.info("refreshed %d/%d pairs", ok, len(res))
+    chunks = run_fade_probe(cfg, send=args.send, data_dir=data_dir,
+                            only_signals=args.only_signals,
+                            universe_top=args.universe_top,
+                            max_slots=args.slots)
+    for i, chunk in enumerate(chunks):
+        if i:
+            print("\n" + "-" * 60)
+        print(chunk)
+    if not chunks:
+        logger.info("nothing to report")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="pair_scout",
@@ -197,14 +223,30 @@ def build_parser() -> argparse.ArgumentParser:
                     help="bars to refresh per pair (~90 days of 1h)")
     tp.add_argument("--only-signals", action="store_true",
                     help="skip the Telegram message when there are no new signals")
-    tp.add_argument("--family", default="psar", choices=("psar", "donchian"),
-                    help="signal family (psar = validated champion, donchian = "
-                         "pass-10 runner-up)")
+    tp.add_argument("--family", default="squeeze",
+                    choices=("squeeze", "psar", "donchian"),
+                    help="signal family (squeeze = PRODUCTION v3 daily book; "
+                         "psar = retired, fails 24m; donchian = legacy)")
     tp.add_argument("--slots", type=int, default=8,
                     help="max concurrent positions shown (champion uses 8)")
     tp.add_argument("--universe-top", type=int, default=200,
                     help="point-in-time universe size (30 = liquid tier with the "
                          "cleanest fills; backtest optimum is 200 for max signals)")
+
+    fp = sub.add_parser("fade-probe",
+                        help="FADE v6 hourly spike-fade alerts (Telegram)")
+    fp.add_argument("--send", action="store_true",
+                    help="send to Telegram (default: dry-run print)")
+    fp.add_argument("--skip-refresh", action="store_true",
+                    help="use existing saved_data_live klines")
+    fp.add_argument("--bars", type=int, default=1200,
+                    help="bars to refresh per pair (~50 days of 1h)")
+    fp.add_argument("--only-signals", action="store_true",
+                    help="suppress the message when nothing new happened")
+    fp.add_argument("--universe-top", type=int, default=200,
+                    help="top-N dollar-volume universe (v6 backtest = 200)")
+    fp.add_argument("--slots", type=int, default=8,
+                    help="max concurrent fade calls (v6 backtest = 8)")
     return parser
 
 
@@ -223,6 +265,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_tune(args)
         if args.command == "ta-probe":
             return cmd_ta_probe(args)
+        if args.command == "fade-probe":
+            return cmd_fade_probe(args)
         parser.error(f"unknown command {args.command}")
     except ConfigError as exc:
         logger.error("configuration error: %s", exc)

@@ -216,6 +216,36 @@ def _channel_states(c4: pd.DataFrame, entry_days: int, exit_days: int):
     return long_act, long_exit, short_act, short_exit
 
 
+def squeeze_signals_panel(panel, kc_mult: float = 2.0, bb_len_d: int = 20) -> Signals:
+    """PRODUCTION squeeze v2 (backtests/iterate14.squeeze2, 24m SR 1.24).
+
+    BB(bb_len_d, 2sd) inside Keltner(14d, kc_mult x ATR) compression; entry
+    on close breaking a band out of compression; exit state embedded: drops
+    when close re-crosses the 20d mid (the sim's deactivation exit)."""
+    h4, l4, c4, _v4 = _resample_ohlcv(panel)
+    mid = _ema(c4, 20 * BPD4)
+    atr = _atr(h4, l4, c4, 14 * BPD4)
+    up, dn = mid + kc_mult * atr, mid - kc_mult * atr
+    sd = c4.rolling(bb_len_d * BPD4).std(ddof=0)
+    bup, bdn = mid + 2 * sd, mid - 2 * sd
+    sq1 = ((bup < up) & (bdn > dn)).shift(1).fillna(False)
+    la_trig = (c4 > bup) & sq1
+    sa_trig = (c4 < bdn) & sq1
+    hold_l, hold_s = c4 >= mid, c4 <= mid
+
+    def persist(trig: pd.DataFrame, hold: pd.DataFrame) -> pd.DataFrame:
+        seg = trig.cumsum()
+        ever_off = (~hold.fillna(False)).groupby(seg).cummax()
+        return trig | ((seg > 0) & ~ever_off)
+
+    la = pd.DataFrame(False, index=c4.index, columns=c4.columns)
+    sa = pd.DataFrame(False, index=c4.index, columns=c4.columns)
+    for col in c4.columns:
+        la[col] = persist(la_trig[col], hold_l[col])
+        sa[col] = persist(sa_trig[col], hold_s[col])
+    return _states_to_signals(la, ~la, sa, ~sa, panel.index, c4=c4)
+
+
 def psar_signals_panel(panel, af0: float = 0.02, afmax: float = 0.2) -> Signals:
     """PSAR flip states (long while price above SAR) for the whole panel."""
     h4, l4, c4, _ = _resample_ohlcv(panel)
