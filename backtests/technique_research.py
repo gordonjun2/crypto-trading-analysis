@@ -38,6 +38,25 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+FINAL VERDICT (2026-09-29, round 25 — ORDERFLOW / new data grounds).
+ADOPTED FADE v7 (orderflow veto): new 24m dataset saved_data_24m_flow
+(653 pairs, taker-buy quote volume from klines — same grid as panel).
+Event-bar aggressive-buy share tf = TB/V: the fade edge is MONOTONICALLY
+worse in tf (quintile gradient +4.93%/trade at tf<0.50 -> +0.41% at
+tf>=0.54; win 80% -> 68%). Buy climaxes (tf >= 0.60) are TOXIC to fade:
+standalone SR -1.42, P0 98%. Veto tf >= 0.60 (plateau 0.55-0.65 all
+6.15-6.36): FADE v7 SR 6.36 (+184%/yr, DD -15.2%), beats v6 on EVERY
+split (H1 5.14/4.81, H2 7.49/7.09, train 5.53/5.22, test 7.54/7.09);
+12m cross-check 7.22. Mechanism a-priori: climactic market-buying =
+momentum ignition/continuation, not exhaustion. Pair 60/40: SR 6.02,
++124%/yr, DD -9.3%, 22/23 months positive, worst month -0.0%.
+Live wiring: refresh/loader now carry Taker Buy USDT end-to-end; fade
+probe applies the veto. REJECTED as standalone books: 4h climax fade
+(-2.28 — buying climaxes should be JOINED not faded at 4h, or the
+definition trades the toxic side), CVD divergence (0.24 P0 37%), CVD
+momentum (0.97 P0 8%). OI/liquidation/LS-ratio free history is 30d only
+-> derivs_snapshot cron collects forward data (saved_data_live/derivs/).
+
 FINAL VERDICT (2026-09-28, rounds 21-24 — exhaustion sweep). ALL REJECTED,
 production v6 + 60/40 stands: squeeze 2h/1h state grids degenerate (23/0
 trades); retest entries (0.88); fade trailing-last tranche (5.72, origin

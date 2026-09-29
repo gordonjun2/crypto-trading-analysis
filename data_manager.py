@@ -15,7 +15,10 @@ def save_ts_df(candlestick_data, dir_path, pair):
     Save time series financial data and associated metadata.
     """
 
+    has_taker = len(candlestick_data[0]) == 7
     columns = ["Open Time", "Open", "High", "Low", "Close", "Volume in USDT"]
+    if has_taker:
+        columns = columns + ["Taker Buy USDT"]
     df = pd.DataFrame(candlestick_data, columns=columns)
 
     df["Open"] = pd.to_numeric(df["Open"])
@@ -23,6 +26,8 @@ def save_ts_df(candlestick_data, dir_path, pair):
     df["Low"] = pd.to_numeric(df["Low"])
     df["Close"] = pd.to_numeric(df["Close"])
     df["Volume in USDT"] = pd.to_numeric(df["Volume in USDT"])
+    if has_taker:
+        df["Taker Buy USDT"] = pd.to_numeric(df["Taker Buy USDT"])
     df["Open Time"] = pd.to_numeric(df["Open Time"])
     df["Open Time"] = pd.to_datetime(df["Open Time"], unit='ms')
     df = df.sort_values(by='Open Time', ascending=True).reset_index(drop=True)

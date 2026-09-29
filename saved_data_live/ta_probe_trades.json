@@ -175,11 +175,11 @@
    "hedge_dir": "SHORT",
    "hedge_entry_px": 0.07665,
    "conf": 95,
-   "state": "open",
-   "exit_date": null,
-   "exit_px": null,
-   "hedge_exit_px": null,
-   "exit_reason": null
+   "state": "closed",
+   "exit_date": "2026-09-29T01:00:00",
+   "exit_px": 1.124,
+   "hedge_exit_px": 0.07179,
+   "exit_reason": "stop"
   },
   {
    "sym": "AKEUSDT",

@@ -85,6 +85,9 @@ def _load_pair(path: Path) -> tuple[str, pd.DataFrame] | None:
         logger.warning("skipping %s: missing columns %s", pair, missing)
         return None
     out = df[list(COLUMNS)].apply(pd.to_numeric, errors="coerce")
+    if "Taker Buy USDT" in df.columns:
+        out["Taker Buy USDT"] = pd.to_numeric(df["Taker Buy USDT"],
+                                              errors="coerce")
     return pair, out
 
 

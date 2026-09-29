@@ -661,6 +661,7 @@ FADE_COOLDOWN_H = 12  # same-symbol re-alert cooldown
 FADE_CAP_H = 42  # position time cap (hours)
 FADE_UNIV = 200  # top-N dollar-volume universe
 FADE_SLOTS = 8  # max concurrent fade calls
+FADE_TF_MAX = 0.60  # v7 orderflow veto: skip buy-climax pumps (tf >= 60%)
 
 
 def _fade_state_path(data_dir: str | None, cfg: AppConfig) -> Path:
@@ -755,6 +756,13 @@ def build_fade_message(cfg: AppConfig, data_dir: str | None = None,
         vol_now = float(panel.frames[sym]["Volume"].iloc[last])
         if vol_now < FADE_VOLX * v:
             continue
+        # v7 orderflow veto: aggressive-buy share of the event bar (skip
+        # buy climaxes — the fade edge is NEGATIVE there, 24m SR -1.42)
+        tf_col = panel.frames[sym].get("Taker Buy USDT")
+        if tf_col is not None:
+            tfe = float(tf_col.iloc[last])
+            if np.isfinite(tfe) and vol_now > 0 and tfe / vol_now >= FADE_TF_MAX:
+                continue
         last_alert = alerts.get(sym)
         if last_alert and (now_ts - datetime.fromisoformat(last_alert)
                            ).total_seconds() < FADE_COOLDOWN_H * 3600:

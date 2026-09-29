@@ -98,9 +98,11 @@ def fetch_klines_paginated(symbol: str, interval: str, bars: int,
 
 
 def _rows_for_save(raw_rows: list[list]) -> list[list]:
-    """Keep the 6 columns data_manager.save_ts_df expects (quote volume for 'Volume in USDT')."""
+    """Keep the columns save_ts_df expects (+ taker-buy quote vol for the
+    FADE v7 orderflow veto: aggressive-buy share of the event bar)."""
     return [
-        [row[0], row[1], row[2], row[3], row[4], row[7]] for row in raw_rows
+        [row[0], row[1], row[2], row[3], row[4], row[7], row[10]]
+        for row in raw_rows
     ]
 
 

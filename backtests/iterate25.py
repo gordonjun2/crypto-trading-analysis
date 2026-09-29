@@ -52,7 +52,7 @@ def load_flow():
 
 # ---------------------------------------------------------------- battery A
 def fade_sim7(k=5.0, cap_h=42, tf=None, tf_min=None, tf_max=None,
-              tf_pre=None, tf_pre_max=None):
+              tf_pre=None, tf_pre_max=None, gate=None):
     """FADE v6 + taker-fraction filters at the event bar.
     tf_min/tf_max bound the EVENT bar's aggressive-buy share;
     tf_pre/tf_pre_max bound the mean share of the 3 bars BEFORE it."""
@@ -155,6 +155,10 @@ def fade_sim7(k=5.0, cap_h=42, tf=None, tf_min=None, tf_max=None,
                 continue
             if tf_max is not None and not (np.isfinite(tfe) and tfe <= tf_max):
                 continue
+            if gate is not None:
+                sc = TR.score_at(symv, i, "SHORT")
+                if sc is None or sc <= gate:
+                    continue
             if tf_pre is not None or tf_pre_max is not None:
                 pre = flow[symv][max(i - 3, 0):i]
                 pre = pre[np.isfinite(pre)]
