@@ -46,6 +46,14 @@ def daily_build():
     import pair_scout.fetch_weather as FW
     FW.backfill_nwp()
     FW.backfill_obs()
+    try:
+        FW.backfill_models()
+    except Exception as e:
+        print(f"models refresh failed: {e}")
+    try:
+        FW.backfill_stations()
+    except Exception as e:
+        print(f"stations refresh failed: {e}")
     nwp = json.load(gzip.open(BASE / "nwp_hourly.json.gz", "rt"))
     nwpd = nwp_daily(nwp)
     obs = json.load(open(BASE / "obs_daily.json"))
