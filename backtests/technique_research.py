@@ -38,6 +38,37 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+FINAL VERDICT (2026-09-30, round 32 — SENTIMENT). User directive: exploit
+the sentimental market (prediction markets, creative methods). RESULTS:
+1) Fear&Greed level has NO forward signal in 24m (regime drift diff
+   <= 0.4%/wk, non-monotonic; no contrarian bounce in extreme fear, no
+   top signal in extreme greed; shock days n=17/14 untradeable).
+2) Trade-level gradients are REAL but are vol compensation, not alpha:
+   FADE shorts average +4.4%/trade in F&G extreme-fear vs +2.3% in greed,
+   +6.9% on funding-negative days vs +2.9% — but GATES FAIL at book
+   level: full FADE 6.53 SR > fear-only 5.52 > greed-only 2.60; funding-
+   stress-only 6.32 < base. Stress-regime trades cluster in high-vol
+   windows: bigger absolute wins, same risk-adjusted edge. (The classic
+   bucket-analysis trap — always gate-test before adopting.)
+3) CLIM capitulation-reversal hypothesis RECORDED (not adoptable): long
+   climaxes work in fear regimes per BOTH gauges (+5.7% extfear n=12,
+   +5.7% funding-neg n=4-ish) — 30-trade gate test SR 1.62 vs 1.48 =
+   noise. Revisit when probe journals mature.
+4) SQUEEZE F&G regime masks rejected (mask creates synthetic fresh
+   activations on regime re-entry — artifact + noise).
+5) PREDICTION MARKETS: Polymarket prices-history pruned to ~30 days
+   (2024 markets return EMPTY; startTs/endTs rejected 400) -> NO long
+   backfill possible. Kalshi same depth. Forward-only play: hourly
+   collector live (fetch_prediction.py snapshot, cron :35) archiving
+   ~400 Polymarket BTC ladders + ~150 Fed markets + 636 Kalshi KXBTCD/
+   KXBTC strikes per snapshot to saved_data_live/prediction/. In ~30
+   days: test implied-tail/probability conditioning (Kalshi strike
+   ladders -> implied distribution; Fed P(cut) paths -> macro regime).
+6) Aggregate funding sentiment (BTC): capitulation days (funding<0, 28d)
+   see BTC +1.06%/7d bounce; euphoric days +0.66% — mild, no edge.
+INFRA: feargreed.json (3,160d history), polymarket backfill (91 long-
+lived paths, 2025-08+), iterate32.py batteries a-e.
+
 FINAL VERDICT (2026-09-29, round 31 — LEVERAGE). ADOPTED v9 LEVERED
 overlay (user directive: 5x, no liquidation, stop-loss mandatory).
 Evidence: naive 5x = DD -68.6% (worst trade -77% NAV). ATR stops are

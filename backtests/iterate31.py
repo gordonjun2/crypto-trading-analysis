@@ -184,9 +184,10 @@ def fade_sim8(k=5.0, cap_h=42, tf=None, tf_max=0.60, gate=None,
 
 # ------------------------------------------------------------------ CLIM 5x
 def cont_sim8(tf=None, tf_min=0.60, trail_atr=1.0, cap_h=24, k=5.0,
-              lev=LEV, stop_pct=0.08, gross_cap=GROSS_CAP):
+              lev=LEV, stop_pct=0.08, gross_cap=GROSS_CAP,
+              fg=None, fg_lo=None, fg_hi=None):
     """CLIM v1 + hard floor stop (fill = min(open, stop_px), stop checked
-    before the close-based trail)."""
+    before the close-based trail). Optional Fear&Greed gate fg_lo..fg_hi."""
     slots = SLOTS
     n = len(idx)
     net_arr = np.zeros(n)
@@ -259,6 +260,12 @@ def cont_sim8(tf=None, tf_min=0.60, trail_atr=1.0, cap_h=24, k=5.0,
             if tf is not None:
                 tfe = tf[symv][i]
                 if not (np.isfinite(tfe) and tfe >= tf_min):
+                    continue
+            if fg is not None:
+                fgv = fg[i]
+                if not np.isfinite(fgv) or \
+                        (fg_lo is not None and fgv < fg_lo) or \
+                        (fg_hi is not None and fgv > fg_hi):
                     continue
             if len(open_tr) >= slots:
                 break
@@ -421,11 +428,12 @@ def battery_d(tf, fade_kw, clim_kw, sq_stop):
 def fade_sim9(k=5.0, cap_h=42, tf=None, tf_max=0.60,
               lev=LEV, stop_pct=0.15, gross_cap=GROSS_CAP,
               max_slots=SLOTS, cluster_gate=None, breaker=None,
-              stop_cool=12):
+              stop_cool=12, fg=None, fg_lo=None, fg_hi=None):
     """FADE @5x + fixed-% stop + cluster defenses:
     max_slots   cap concurrent fade positions (cluster exposure cap)
     cluster_gate skip entries when >= N simultaneous new spikes (squeeze day)
     breaker     no new entries while trailing-24h book return < -breaker
+    fg/fg_lo/hi Fear&Greed entry gate (strict-lag hourly series)
     stop_cool   per-symbol cooldown after a STOP (vs 12h after any close)"""
     flow = tf
     n = len(idx)
@@ -532,6 +540,12 @@ def fade_sim9(k=5.0, cap_h=42, tf=None, tf_max=0.60,
             if tf_max is not None and not (np.isfinite(tfe)
                                            and tfe <= tf_max):
                 continue
+            if fg is not None:
+                fgv = fg[i]
+                if not np.isfinite(fgv) or \
+                        (fg_lo is not None and fgv < fg_lo) or \
+                        (fg_hi is not None and fgv > fg_hi):
+                    continue
             cands.append((symv, a))
         if cluster_gate is not None and len(cands) >= cluster_gate:
             cands = []
