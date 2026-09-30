@@ -680,6 +680,52 @@ def battery_g(tf, slots=8, cg=None, sh=0.05, sq_lev=2.0):
     return combo
 
 
+def battery_h(tf):
+    print("## Round 31h — leverage sweep 1x..5x (v9 config: FADE stop15% +"
+          " cluster3, SQUEEZE hourly stop 5%, CLIM trail + floor 6%)")
+    print("| lev | book | SR(bar) | daily-block CI | ret | maxDD | stops |"
+          " worst trade |")
+    print("|---|---|---|---|---|---|---|---|")
+    trios = {}
+    for lev in (1.0, 2.0, 3.0, 4.0, 5.0):
+        f_net, f_tr, f_rc = fade_sim9(tf=tf, cluster_gate=3, lev=lev)
+        c_net, c_tr, _ = cont_sim8(tf=tf, stop_pct=0.06, lev=lev)
+        sq, s_tr, sq_n = sq_stop_hybrid(0.05, lev=lev)
+        trio = 0.60 * f_net + 0.25 * sq + 0.15 * c_net
+        trios[lev] = trio
+        ns_f, worst_f, adv_f = trade_stats(f_tr, f_rc)
+        ns_c, worst_c, adv_c = trade_stats(c_tr, [])
+        ns_s = sum(1 for t in s_tr if t.get("reason") == "stop")
+        worst_s = min([t["w"] * ((t["exit_px"] / t["px0"] - 1.0)
+                       if t["dir"] == "LONG" else
+                       (t["px0"] / max(t["exit_px"], 1e-12) - 1.0))
+                       for t in s_tr] or [0.0])
+        line(f"{lev:.0f}x FADE", f_net, len(f_rc),
+             f" {ns_f} | {worst_f:+.1%} |")
+        line(f"{lev:.0f}x SQUEEZE", sq, sq_n, f" {ns_s} | {worst_s:+.1%} |")
+        line(f"{lev:.0f}x CLIM", c_net, len(c_tr),
+             f" {ns_c} | {worst_c:+.1%} |")
+        line(f"{lev:.0f}x TRIO", trio)
+        g = gross_series(f_tr) + gross_series(c_tr) + gross_series(s_tr)
+        m = trio.resample("MS").sum()
+        print(f"  gross mean {g.mean():.2f} p95 {g.quantile(0.95):.2f} max "
+              f"{g.max():.2f} | months {int((m > 0).sum())}/{len(m)} "
+              f"worst {m.min():+.1%} | max adverse fade {adv_f:.1%} "
+              f"clim {adv_c:.1%}", flush=True)
+    print()
+    print("## Round 31h summary — TRIO across leverage")
+    print("| lev | SR(bar) | ret | maxDD | ret/DD |")
+    print("|---|---|---|---|---|")
+    for lev, trio in trios.items():
+        dd = max_dd_of(trio)
+        days = len(trio) / 24
+        r = trio.sum() * 365 / days
+        lo, hi, pn = bootstrap_sharpe_ci(trio)
+        print(f"| {lev:.0f}x | {sharpe_of(trio):.2f} [{lo:.2f},{hi:.2f}] "
+              f"P0 {pn:.0%} | {r:+.0%}/yr | {dd:.1%} | {r / -dd:.1f} |",
+              flush=True)
+
+
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
     if mode in ("c", "all"):
@@ -690,6 +736,8 @@ def main():
         battery_f()
     if mode in ("g", "all"):
         battery_g(load_flow(), slots=8, cg=3)
+    if mode in ("h", "all"):
+        battery_h(load_flow())
 
 
 if __name__ == "__main__":
