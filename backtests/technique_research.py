@@ -56,25 +56,32 @@ windows (TRIO +22.3% NAV over 555h in windows, +0.04%/h). 33e Fed
 P(cut) 104d — monitor only. CONCLUSION: macro odds = dashboard/monitor
 material (risk-off gauge), zero book-level conditioning edge; forward
 archive (hourly snapshots) accumulates for event studies.
-TRACK B VERDICT — weather: MACHINERY PROVEN, EDGE PENDING SAMPLE.
-Data: 36 Poly cities have active daily temp ladders; 35-collector
+TRACK B VERDICT — weather: PROMISING PILOT, FORWARD CONFIRMATION
+RUNNING. Data: 36 Poly cities have active daily temp ladders; 35-city
 archive: NWP forecast-as-issued + d1/d2/d3 run vintages (open-meteo
-historical-forecast, 5136h/city), ERA5 obs (638d/city). NWP skill
-(<Aug-01 fit, OOS vs market window): pooled err sd lead1 1.39C,
-lead2 1.62C, lead3 1.80C; per-city biases up to ±2.2C (grid-vs-station)
-— all calibrated out. Pilot backtest (12 settled city-days, the ONLY
-market history Poly retains ~30d; leakage-audited: vintage forecasts +
-pre-entry quotes only, settlement labels separate): implied_sd/NWP_sd
-median 0.90 (market UNDER-dispersed vs our NWP at lead1); Brier market
-0.0657 BEATS raw NWP 0.0875 — crowd is sharp at T-12h. Strategy pilot
-(theta .06): T-12h +0.42/40 trades; T-6h +3.95/45 (NO-side fading
-overpriced legs +2.25/+3.29, hit 76-81%). TOO SMALL to claim; growing
-via hourly snapshot + daily builder (weather_build.py cron 01:20 UTC,
-executable bid/ask pricing, settle-guard 30h). Decision in ~2-4 weeks
-at ~300-500 city-days: if NO-fade edge holds with block-bootstrap CI
-excluding zero -> first standalone non-crypto book. Label-leak audit:
-entries use only vintages known at entry (T-6h truncates same-day run
-at 17h local), market quotes strictly pre-entry, obs = settlement only.
+historical-forecast, 5136h/city), ERA5 obs (638d/city), market backfill
+97 events / 1067 legs. NWP skill (<Aug-01 fit, OOS vs market window):
+pooled err sd lead1 1.39C, lead2 1.62C, lead3 1.80C; per-city biases up
+to ±2.2C (grid-vs-station) — calibrated out. PILOT (53 city-days / 24
+cities / 5 dates; leakage-audited: vintage forecasts + pre-entry quotes
+only): market UNDER-dispersed vs NWP (implied_sd/NWP_sd med 0.85);
+market Brier 0.067 beats raw NWP 0.082 at T-12h (crowd sharp) BUT
+disagreement > theta is tradeable: T-12h +13.21u over 210 trades
+(+0.063/trade, CI [+.037,+.490] excl 0); T-6h +18.93u/212 (+0.089, CI
+excl 0); test-dates consistent (+11.75/+15.92). ROBUSTNESS (33W-e):
+theta .04-.10 all positive (avg/trade RISES with theta); NO-only book
++0.066..+0.090/trade at 72-75% hit; positive 4/5 dates; NOT single-city
+or single-day driven (per-trade economics stable across dates). CAVEATS:
+spread stress +.02-.03 eats 35% but stays positive; per-date coverage
+was thin on early dates (4-12 trades); 5 dates only -> date-level
+systemic risk untested; Poly currently fee-free (monitor). CONFIRMATION:
+weather_build.py daily cron (01:20 UTC, settle-guard 30h, executable
+bid/ask pricing) accumulates the dataset; decision at 300-500 city-days
+(~2-4 wks): if avg pnl/trade >= +0.03 with block-CI excluding zero on
+REAL quotes -> first standalone non-crypto book (target sizing ~2-3%
+NAV risk, uncorrelated to TRIO). Label-leak audit: entries use only
+vintages known at entry (T-6h truncates same-day run at 17h local),
+market quotes strictly pre-entry, obs = settlement only.
 
 PREDICTION MARKET PLAYBOOK (2026-09-30, round 32b — venues scouted).
 Kalshi catalog: 14,494 series (sports 3.8k, entertainment 2.5k, politics

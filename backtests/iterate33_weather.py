@@ -1,9 +1,11 @@
 """Round 33 (Track B): WEATHER TEMP LADDERS — standalone strategy research.
 SEPARATE from Track A (crypto-linked macro). Do not merge books.
-VERDICT (technique_research round 33): machinery proven, edge pending
-sample — pilot (12 city-days) mildly positive (NO-fade hit 76-81%),
-market itself beats raw NWP at T-12h (Brier 0.066 vs 0.088); growing
-dataset via weather_build.py daily cron; decision at 300-500 city-days.
+VERDICT (technique_research round 33): PROMISING PILOT, FORWARD
+CONFIRMATION RUNNING — 53 city-days: T-12h +13.21u/210 trades (CI excl
+0), T-6h +18.93u/212; robust to theta .04-.10 and NO-only; spread
+stress +.02-.03 keeps pnl positive; forward dataset (executable quotes)
+accumulates via weather_build.py daily cron; decision at 300-500
+city-days.
 
 Data (pair_scout/fetch_weather.py):
   weather_backfill.json  24 events / 264 legs, 8 cities, 60-min price hist
@@ -329,8 +331,91 @@ def battery_d(legs, err_model, nwp_h, mkt, theta=0.06):
     report(entries_at(6, True), "T-6h lead0@17h")
 
 
+# ---------------------------------------------------------------- battery e
+def battery_e(legs, err_model, nwp_h, mkt):
+    """Robustness: theta sweep, spread stress, concentration, NO-only."""
+    print("\n## Round 33W-e — robustness")
+    print("| theta | spread | mode | n | pnl | hit | avg | CI zero-out |")
+    print("|---|---|---|---|---|---|---|---|")
+    for theta in (0.04, 0.06, 0.08, 0.10):
+        for spread in (0.01, 0.02, 0.03):
+            tr = _run_strategy(legs, err_model, mkt, theta, spread,
+                               hours=12, side_filter="all")
+            _repl(tr, theta, spread, "T-12h all")
+        tr = _run_strategy(legs, err_model, mkt, theta, 0.01, 12, "NO")
+        _repl(tr, theta, 0.01, "T-12h NO-only")
+    # concentration: per-date and per-city pnl (theta .06, spread .01)
+    tr = _run_strategy(legs, err_model, mkt, 0.06, 0.01, 12, "all")
+    if len(tr):
+        bydate = tr.groupby("date")["pnl"].agg(["sum", "count"])
+        print("  per-date pnl (T-12h):")
+        for d, r in bydate.iterrows():
+            print(f"    {d}: {r['sum']:+.2f} over {int(r['count'])} trades")
+        bycity = tr.groupby("city")["pnl"].agg(["sum", "count"])
+        top = bycity.sort_values("sum", ascending=False)
+        print(f"  top city: {top.index[0]} {top['sum'].iloc[0]:+.2f} "
+              f"({int(top['count'].iloc[0])} trades) | bottom "
+              f"{top.index[-1]} {top['sum'].iloc[-1]:+.2f}")
+        tot = tr["pnl"].sum()
+        mx = bydate["sum"].max()
+        print(f"  max date share of total pnl: {mx / tot:.0%} "
+              f"(date concentration)")
+
+
+def _run_strategy(legs, err_model, mkt, theta, spread, hours=12,
+                  side_filter="all", fee=0.0, max_dist=99):
+    ev_by_key = {(ev["city"], ev["end"]): ev for ev in mkt["events"]}
+    trades = []
+    for _, r in legs.iterrows():
+        ev = ev_by_key.get((r["city"], r["date"]))
+        if ev is None:
+            continue
+        mu_e, sd_e = err_model[r["city"]]["fc1"]
+        z = (np.array(r["ks"]) + 0.5 - r["fc1"] - mu_e) / sd_e
+        c = norm.cdf(z)
+        q = np.diff(np.concatenate(([0.0], c, [1.0])))
+        qd = dict(zip(r["ks"], q))
+        for k, pk in r["pk"].items():
+            p = r["prices"].get(("eq", k))
+            if p is None or k not in qd:
+                continue
+            if abs(k - round(r["fc1"])) > max_dist:
+                continue
+            win = 1.0 if k == r["kstar"] else 0.0
+            if qd[k] - p >= theta and side_filter in ("all", "YES"):
+                cost = p + spread + fee
+                trades.append({"city": r["city"], "date": r["date"],
+                               "side": "YES", "dist": abs(k - round(r["fc1"])),
+                               "pnl": (1.0 - cost) if win else -cost})
+            elif (1 - qd[k]) - (1 - p) >= theta and \
+                    side_filter in ("all", "NO"):
+                cost_n = (1 - p) + spread + fee
+                trades.append({"city": r["city"], "date": r["date"],
+                               "side": "NO", "dist": abs(k - round(r["fc1"])),
+                               "pnl": -cost_n if win else 1.0 - cost_n})
+    return pd.DataFrame(trades)
+
+
+def _repl(tr, theta, spread, tag):
+    if len(tr) == 0:
+        print(f"| {theta} | {spread} | {tag} | 0 | - | - | - | - |")
+        return
+    byday = tr.groupby(["city", "date"])["pnl"].sum()
+    zero_out = "-"
+    if len(byday) >= 20:
+        rng = np.random.default_rng(7)
+        arr = byday.values
+        stats = [arr[rng.choice(len(arr), len(arr))].mean()
+                 for _ in range(2000)]
+        lo_b, hi_b = np.percentile(stats, [2.5, 97.5])
+        zero_out = str(lo_b > 0 or hi_b < 0)
+    print(f"| {theta} | {spread} | {tag} | {len(tr)} | "
+          f"{tr['pnl'].sum():+.2f} | {(tr['pnl'] > 0).mean():.0%} | "
+          f"{tr['pnl'].mean():+.4f} | {zero_out} |")
+
+
 if __name__ == "__main__":
-    which = [a for a in sys.argv[1:] if a in "abcd"] or list("abcd")
+    which = [a for a in sys.argv[1:] if a in "abcde"] or list("abcde")
     mkt, nwp, obs = load_all()
     nwpd = nwp_daily(nwp)
     em, pool = battery_a(nwpd, obs) if "a" in which else (
@@ -345,3 +430,5 @@ if __name__ == "__main__":
         battery_c(legs)
     if "d" in which:
         battery_d(legs, em, nwp, mkt)
+    if "e" in which:
+        battery_e(legs, em, nwp, mkt)
