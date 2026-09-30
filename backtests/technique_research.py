@@ -56,36 +56,42 @@ windows (TRIO +22.3% NAV over 555h in windows, +0.04%/h). 33e Fed
 P(cut) 104d — monitor only. CONCLUSION: macro odds = dashboard/monitor
 material (risk-off gauge), zero book-level conditioning edge; forward
 archive (hourly snapshots) accumulates for event studies.
-TRACK B VERDICT — weather: PROMISING PILOT, FORWARD CONFIRMATION
-RUNNING. Data: 36 Poly cities have active daily temp ladders; 35-city
-archive: NWP forecast-as-issued + d1/d2/d3 run vintages (open-meteo
-historical-forecast, 5136h/city), ERA5 obs (638d/city), market backfill
-97 events / 1067 legs. NWP skill (<Aug-01 fit, OOS vs market window):
-pooled err sd lead1 1.39C, lead2 1.62C, lead3 1.80C; per-city biases up
-to ±2.2C (grid-vs-station) — calibrated out. PILOT (53 city-days / 24
-cities / 5 dates; leakage-audited: vintage forecasts + pre-entry quotes
-only): market UNDER-dispersed vs NWP (implied_sd/NWP_sd med 0.85);
-market Brier 0.067 beats raw NWP 0.082 at T-12h (crowd sharp) BUT
-disagreement > theta is tradeable: T-12h +13.21u over 210 trades
-(+0.063/trade, CI [+.037,+.490] excl 0); T-6h +18.93u/212 (+0.089, CI
-excl 0); test-dates consistent (+11.75/+15.92). ROBUSTNESS (33W-e):
-theta .04-.10 all positive (avg/trade RISES with theta); NO-only book
-+0.066..+0.090/trade at 72-75% hit; positive 4/5 dates; NOT single-city
-or single-day driven (per-trade economics stable across dates). CAVEATS:
-spread stress +.02-.03 eats 35% but stays positive; per-date coverage
-was thin on early dates (4-12 trades); 5 dates only -> date-level
-systemic risk untested; Poly currently fee-free (monitor). CONFIRMATION:
-weather_build.py daily cron (01:20 UTC, settle-guard 30h, executable
-bid/ask pricing) accumulates the dataset; decision at 300-500 city-days
-(~2-4 wks): if avg pnl/trade >= +0.03 with block-CI excluding zero on
-REAL quotes -> first standalone non-crypto book (target sizing ~2-3%
-NAV risk, uncorrelated to TRIO). Model iteration: fc1+fc2 blend with
-blended sd lifts pnl/trade +28% (+0.063 -> +0.080, 33W-f) — adopted in
-the confirmation pipeline. Entry-time scan: flat T-18h..T-3h at fixed
-model (thin books barely reprice pre-T-12h; the T-6h gain comes from
-the lead-0 nowcast MODEL, not price timing). Label-leak audit: entries
-use only vintages known at entry (T-6h truncates same-day run at 17h
-local), market quotes strictly pre-entry, obs = settlement only.
+TRACK B VERDICT r33 — weather: PROMISING PILOT, FORWARD CONFIRMATION
+RUNNING. 53 city-days pilot: T-12h +13.21u/210 trades CI excl 0; NO-only
++0.066-0.090/trade @72-75% hit; robust theta .04-.10; market beats raw
+NWP on Brier (trade only large disagreements); spread +.02-.03 keeps
+pnl positive. (Superseded/upgraded by round 34 below.)
+
+ROUND 34 (2026-09-30b) — WEATHER v2: BREAKTHROUGH ON PILOT (still
+forward-confirmation-gated). FIX: US ladders are °F (KLGA/KLAX/...),
+others °C — r33 °F-city trades were invalid; all units now mapped
+exactly (P(kF<=C<k+1F) via (k-32)*5/9). After the fix the honest r33
+baseline drops to +0.052/trade (from +0.063). DATA: every city settles
+off a SPECIFIC AIRPORT STATION (descriptions name it; ICAO extractable)
+-> ASOS/METAR daily max (Iowa mesonet, settlement-true) collector added
+(IEM rate-limits hard: 1 req/45s; pulls Aug 10+ window; ERA5 keeps the
+pre-Aug fit role). upgrades (all fit on train, evaluated on held-out
+test dates Sep 29-30):
+  EMOS spread-scaled sigma (sigma^2 = a + b * inter-model sd^2,
+  Gneiting 2005 recipe): +38%/trade vs static
+  market-NWP blend q = w q_model + (1-w) q_mkt: w->0.3 lifts avg to
+  +0.099 (market prior regularizes the model — crowd is sharp, only
+  large disagreements carry signal)
+  error persistence lam: center += 0.5 * resid(city, D-1) (synoptic
+  regimes persist; causal: yesterday's settled obs) +48%/trade
+  3-model mean (ECMWF/GFS/ICON lead1) ~= best_match; blend12 gain from
+  r33 evaporates after unit fix (was phantom).
+ASSEMBLED (mm1 + emos + w0.3 + lam0.5): TEST +0.110/trade (79 trades,
+both dates positive; date-CI excl 0). T-6h assembled (mm0 nowcast):
+TEST +0.154/trade (55 trades; YES +0.334, NO +0.110). PERMUTATION
+(shuffle model probs across legs, same selection rule): p = 0.000 —
+edge dies without the model's relative leg pricing. CAVEATS: 2 test
+dates only; w/lambda selected on 3 train dates (selection variance);
+station-obs settlement labels still landing (IEM throttle); quote-based
+pricing (weather_build dataset) still the final gate. STATUS: pilot
+machinery at 2.5x round-33 economics; decision remains at 300-500
+forward city-days on executable quotes; if confirmed, sizing ~2-3% NAV
+risk, T-12h + T-6h entries, NO-tilted with selective YES longshots.
 
 PREDICTION MARKET PLAYBOOK (2026-09-30, round 32b — venues scouted).
 Kalshi catalog: 14,494 series (sports 3.8k, entertainment 2.5k, politics

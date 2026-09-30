@@ -165,6 +165,228 @@ def backfill_nwp(start="2026-03-01"):
     print(f"backfill_nwp: {len(out['cities'])} cities -> {path}")
 
 
+def _station_icao(city):
+    """Extract the settlement station ICAO from a market description."""
+    import re
+    s = get("https://gamma-api.polymarket.com/public-search"
+            f"?q={urllib.parse.quote('highest temperature in ' + city)}"
+            "&limit_per_type=3&events_status=active")
+    for ev in s.get("events", []):
+        for m in ev.get("markets", []):
+            d = (m.get("description") or "").lower()
+            hit = re.search(r"site=([a-z]{3,4})", d)
+            if hit:
+                return hit.group(1).upper()
+            hit = re.search(r"\b([kceldrnzwyubgmprsftv][a-z]{3})\b\s*"
+                            r"(airport|station|intl|international)", d)
+            if hit:
+                return hit.group(1).upper()
+    return FALLBACK_ICAO.get(city)
+
+
+FALLBACK_ICAO = {
+    "New York": "KLGA", "Los Angeles": "KLAX", "Chicago": "KORD",
+    "Miami": "KMIA", "Houston": "KHOU", "Dallas": "KDAL",
+    "Atlanta": "KATL", "Denver": "KBKF", "Austin": "KAUS",
+    "Seattle": "KSEA", "San Francisco": "KSFO", "Toronto": "CYYZ",
+    "Paris": "LFPB", "London": "EGLC", "Tokyo": "RJTT",
+    "Seoul": "RKSI", "Hong Kong": "VHHH", "Singapore": "WSSS",
+    "Shanghai": "ZSPD", "Beijing": "ZBAA", "Qingdao": "ZSQD",
+    "Taipei": "RCSS", "Wellington": "NZWN", "Moscow": "UUEE",
+    "Mexico City": "MMMX", "Sao Paulo": "SBGR",
+    "Buenos Aires": "SAEZ", "Manila": "RPLL", "Kuala Lumpur": "WMKK",
+    "Karachi": "OPKC", "Istanbul": "LTFM", "Madrid": "LEMD",
+    "Warsaw": "EPWA", "Amsterdam": "EHAM", "Helsinki": "EFHK",
+}
+
+
+def backfill_stations(start="2026-08-10"):
+    """Settlement-true daily max per city from ASOS/METAR archives
+    (Iowa State mesonet, public). Daily max mimics NOAA hourly Temp:
+    only readings at minutes 40-59 of each local hour (the hourly
+    report), falling back to any 5-min reading."""
+    from datetime import date
+    BASE.mkdir(parents=True, exist_ok=True)
+    today = date.today().isoformat()
+    out = {"fetched": datetime.now(timezone.utc).isoformat(), "cities": {}}
+    for city in CITIES:
+        icao = _station_icao(city)
+        if not icao:
+            print(f"  {city}: no station")
+            continue
+        u = ("https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?"
+             f"station={icao}&data=tmpc&year1={start[:4]}&month1={start[5:7]}"
+             f"&day1={start[8:10]}&year2={today[:4]}&month2={today[5:7]}"
+             f"&day2={today[8:10]}&tz=etc%2FUTC&format=onlycomma&latlon=no"
+             "&missing=M&trace=T")
+        txt = None
+        for attempt in range(3):
+            try:
+                req = urllib.request.Request(
+                    u, headers={"User-Agent": "research"})
+                txt = urllib.request.urlopen(req, timeout=120).read().decode()
+                if "station,valid" in txt:
+                    break
+            except Exception:
+                pass
+            time.sleep(65 * (attempt + 1))
+        if not txt:
+            print(f"  {city}/{icao}: failed after retries")
+            continue
+        daily = {}
+        by_day_hour = {}
+        for line in txt.strip().split("\n")[1:]:
+            parts = line.split(",")
+            if len(parts) < 3 or parts[2] in ("M", ""):
+                continue
+            ts = parts[1]  # UTC
+            day = ts[:10]
+            minute = int(ts[14:16])
+            try:
+                v = float(parts[2])
+            except ValueError:
+                continue
+            hour = ts[11:13]
+            key = (day, hour)
+            if 40 <= minute <= 59:
+                by_day_hour[key] = max(by_day_hour.get(key, -99), v)
+            daily[day] = max(daily.get(day, -99), v)
+        # prefer hourly-report max; fall back to 5-min max per day
+        hours_by_day = {}
+        for (day, hour), v in by_day_hour.items():
+            hours_by_day[day] = max(hours_by_day.get(day, -99), v)
+        merged = {d: hours_by_day.get(d, v) for d, v in daily.items()}
+        out["cities"][city] = {"icao": icao, "tmax_c": merged}
+        print(f"  {city}/{icao}: {len(merged)} days "
+              f"({min(merged) if merged else '-'}.."
+              f"{max(merged) if merged else '-'})", flush=True)
+        time.sleep(35)
+    path = BASE / "stations_daily.json"
+    json.dump(out, open(path, "w"))
+    print(f"backfill_stations -> {path}")
+
+
+MODELS = ("ecmwf_ifs025", "gfs_seamless", "icon_seamless")
+
+
+def backfill_models(start="2026-03-01"):
+    """Per-model daily max (lead-0) + lead-1 vintage daily max for the
+    EMOS-style multi-model blend."""
+    from datetime import date
+    BASE.mkdir(parents=True, exist_ok=True)
+    today = date.today().isoformat()
+    out = {"fetched": datetime.now(timezone.utc).isoformat(), "cities": {}}
+    for city, (lat, lon, tz) in CITIES.items():
+        u = ("https://historical-forecast-api.open-meteo.com/v1/forecast"
+             f"?latitude={lat}&longitude={lon}"
+             "&daily=temperature_2m_max&hourly=temperature_2m_previous_day1"
+             f"&models={','.join(MODELS)}&start_date={start}"
+             f"&end_date={today}&timezone={urllib.parse.quote(tz)}")
+        try:
+            r = get(u)
+        except Exception as e:
+            print(f"  {city}: ERR {str(e)[:60]}")
+            continue
+        cd = {"tz": tz, "lead0": {}, "lead1": {}}
+        d = r.get("daily", {})
+        for m in MODELS:
+            vals = d.get(f"temperature_2m_max_{m}", [])
+            for dt, v in zip(d.get("time", []), vals):
+                if v is not None:
+                    cd["lead0"].setdefault(dt, {})[m] = v
+        h = r.get("hourly", {})
+        t = h.get("time", [])
+        for m in MODELS:
+            vals = h.get(f"temperature_2m_previous_day1_{m}", [])
+            if not vals:
+                continue
+            acc = {}
+            for ts, v in zip(t, vals):
+                if v is None:
+                    continue
+                acc.setdefault(ts[:10], -99)
+                acc[ts[:10]] = max(acc[ts[:10]], v)
+            for dt, v in acc.items():
+                if v > -90:
+                    cd["lead1"].setdefault(dt, {})[m] = v
+        out["cities"][city] = cd
+        n0 = sum(1 for v in cd["lead0"].values() if len(v) >= 2)
+        print(f"  {city}: lead0 {n0}d, lead1 {len(cd['lead1'])}d",
+              flush=True)
+        time.sleep(1.5)
+    path = BASE / "models_daily.json"
+    json.dump(out, open(path, "w"))
+    print(f"backfill_models -> {path}")
+
+
+def backfill_ensemble(start="2026-07-01"):
+    """ECMWF 50-member ensemble daily-max spread per city (lead-0).
+    Chunked pulls (api caps response size)."""
+    from datetime import date, timedelta
+    import pandas as pd
+    BASE.mkdir(parents=True, exist_ok=True)
+    today = date.today().isoformat()
+    out = {"fetched": datetime.now(timezone.utc).isoformat(), "cities": {}}
+    # 10-day chunks
+    chunks = []
+    d0 = pd.Timestamp(start).date()
+    while d0.isoformat() < today:
+        d1 = min(d0 + timedelta(days=9), pd.Timestamp(today).date())
+        chunks.append((d0.isoformat(), d1.isoformat()))
+        d0 = d1 + timedelta(days=1)
+    for city, (lat, lon, tz) in CITIES.items():
+        spread = {}
+        nfail = 0
+        for cs, ce in chunks:
+            u = (f"https://ensemble-api.open-meteo.com/v1/ensemble"
+                 f"?latitude={lat}&longitude={lon}&hourly=temperature_2m"
+                 f"&models=ecmwf_ifs025&start_date={cs}&end_date={ce}"
+                 f"&timezone={urllib.parse.quote(tz)}")
+            r = None
+            for att in range(4):
+                try:
+                    r = get(u, tries=1)
+                    if r.get("hourly", {}).get("time"):
+                        break
+                except Exception:
+                    pass
+                time.sleep(5 * (att + 1))
+            if r is None or not r.get("hourly", {}).get("time"):
+                nfail += 1
+                print(f"    {city} chunk {cs}..{ce} FAILED", flush=True)
+                continue
+            h = r.get("hourly", {})
+            members = [k for k in h
+                       if k.startswith("temperature_2m_member")]
+            acc = {}
+            t = h.get("time", [])
+            for mkey in members:
+                for ts, v in zip(t, h[mkey]):
+                    if v is None:
+                        continue
+                    day = ts[:10]
+                    dacc = acc.setdefault(day, {})
+                    dacc[mkey] = max(dacc.get(mkey, -99), v)
+            for day, mm in acc.items():
+                vals = list(mm.values())
+                if len(vals) >= 20:
+                    spread[day] = float(np_std(vals))
+            time.sleep(1.2)
+        out["cities"][city] = {"tz": tz, "spread": spread}
+        print(f"  {city}: {len(spread)}d spread "
+              f"({min(spread) if spread else '-'}.."
+              f"{max(spread) if spread else '-'})", flush=True)
+    path = BASE / "ens_spread.json"
+    json.dump(out, open(path, "w"))
+    print(f"backfill_ensemble -> {path}")
+
+
+def np_std(vals):
+    import math
+    mu = sum(vals) / len(vals)
+    return math.sqrt(sum((v - mu) ** 2 for v in vals) / len(vals))
+
+
 def backfill_obs():
     BASE.mkdir(parents=True, exist_ok=True)
     from datetime import date, timedelta
@@ -201,3 +423,9 @@ if __name__ == "__main__":
         backfill_nwp()
     if cmd in ("backfill_obs", "all"):
         backfill_obs()
+    if cmd in ("backfill_stations", "all"):
+        backfill_stations()
+    if cmd in ("backfill_models", "all"):
+        backfill_models()
+    if cmd in ("backfill_ensemble", "all"):
+        backfill_ensemble()
