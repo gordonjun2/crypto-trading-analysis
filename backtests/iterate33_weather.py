@@ -345,7 +345,8 @@ def battery_e(legs, err_model, nwp_h, mkt):
         tr = _run_strategy(legs, err_model, mkt, theta, 0.01, 12, "NO")
         _repl(tr, theta, 0.01, "T-12h NO-only")
     # concentration: per-date and per-city pnl (theta .06, spread .01)
-    tr = _run_strategy(legs, err_model, mkt, 0.06, 0.01, 12, "all")
+    tr = _run_strategy(legs, err_model, mkt, 0.06, 0.01, hours=12,
+                       side_filter="all")
     if len(tr):
         bydate = tr.groupby("date")["pnl"].agg(["sum", "count"])
         print("  per-date pnl (T-12h):")
@@ -370,14 +371,22 @@ def _run_strategy(legs, err_model, mkt, theta, spread, hours=12,
         ev = ev_by_key.get((r["city"], r["date"]))
         if ev is None:
             continue
+        # re-cut entry prices at T-hours before end (honest T-scan)
+        cut = int(pd.Timestamp(r["date"] + "T00:00:00Z").timestamp()
+                  - hours * 3600)
+        prices = {}
+        for leg in ev["legs"]:
+            pts = [(t, p) for t, p in leg["hist"] if t <= cut]
+            if pts:
+                prices[(leg["kind"], int(round(leg["k"])))] = pts[-1][1]
         mu_e, sd_e = err_model[r["city"]]["fc1"]
         z = (np.array(r["ks"]) + 0.5 - r["fc1"] - mu_e) / sd_e
         c = norm.cdf(z)
         q = np.diff(np.concatenate(([0.0], c, [1.0])))
         qd = dict(zip(r["ks"], q))
-        for k, pk in r["pk"].items():
-            p = r["prices"].get(("eq", k))
-            if p is None or k not in qd:
+        for k in r["ks"]:
+            p = prices.get(("eq", k))
+            if p is None:
                 continue
             if abs(k - round(r["fc1"])) > max_dist:
                 continue

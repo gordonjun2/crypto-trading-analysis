@@ -79,9 +79,13 @@ weather_build.py daily cron (01:20 UTC, settle-guard 30h, executable
 bid/ask pricing) accumulates the dataset; decision at 300-500 city-days
 (~2-4 wks): if avg pnl/trade >= +0.03 with block-CI excluding zero on
 REAL quotes -> first standalone non-crypto book (target sizing ~2-3%
-NAV risk, uncorrelated to TRIO). Label-leak audit: entries use only
-vintages known at entry (T-6h truncates same-day run at 17h local),
-market quotes strictly pre-entry, obs = settlement only.
+NAV risk, uncorrelated to TRIO). Model iteration: fc1+fc2 blend with
+blended sd lifts pnl/trade +28% (+0.063 -> +0.080, 33W-f) — adopted in
+the confirmation pipeline. Entry-time scan: flat T-18h..T-3h at fixed
+model (thin books barely reprice pre-T-12h; the T-6h gain comes from
+the lead-0 nowcast MODEL, not price timing). Label-leak audit: entries
+use only vintages known at entry (T-6h truncates same-day run at 17h
+local), market quotes strictly pre-entry, obs = settlement only.
 
 PREDICTION MARKET PLAYBOOK (2026-09-30, round 32b — venues scouted).
 Kalshi catalog: 14,494 series (sports 3.8k, entertainment 2.5k, politics

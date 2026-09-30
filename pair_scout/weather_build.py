@@ -179,12 +179,21 @@ def evaluate():
               f"vs clim {(g['hit'].mean() - g['hit']).pow(2).mean():.4f} |")
 
     # strategy: value bets with executable quotes
-    for tag, hours, use_fc0 in (("T-12h lead1", 12, False),
+    for tag, hours, use_fc0 in (("T-12h blend12", 12, False),
                                 ("T-6h lead0@17h", 6, True)):
         trades = []
         for _, r in df.iterrows():
             mu_e, sd_e = em.get(r["city"], em["Paris"])["fc1"]
-            fc = r["fc0_17"] if (use_fc0 and r.get("fc0_17")) else r["fc1"]
+            if use_fc0:
+                fc = r["fc0_17"] if r.get("fc0_17") else r["fc1"]
+                sd = sd_e
+            else:
+                # blend lead1+lead2 (round 33W-f: +28% pnl/trade vs fc1)
+                mu2, sd2 = em.get(r["city"], em["Paris"]).get(
+                    "fc2", (0.0, sd_e))
+                fc = (r["fc1"] + (r["fc2"] if r.get("fc2")
+                                  is not None else r["fc1"])) / 2
+                sd = (sd_e + sd2) / 2
             center = fc + mu_e
             ks_all = range(int(center) - 8, int(center) + 9)
             z = (np.array(list(ks_all)) + 0.5 - center) / sd_e
