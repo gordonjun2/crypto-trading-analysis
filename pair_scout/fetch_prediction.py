@@ -139,20 +139,22 @@ def poly_open(query, n=10):
 
 
 def poly_weather():
-    """Active daily high-temp ladders for the core cities (all legs)."""
+    """Active daily high-temp ladders (all legs, all cities we track)."""
+    from pair_scout.fetch_weather import CITIES
     out = []
-    for city in ("Paris", "New York", "Los Angeles", "Seoul", "Hong Kong",
-                 "Shanghai", "Singapore", "London"):
+    for city in CITIES:
         s = poly_search(f"highest temperature in {city}", status="active",
                         n=3)
         for ev in s[:2]:
             for m in ev.get("markets", []):
-                out.append({"q": m.get("question"),
+                out.append({"city": city,
+                            "q": m.get("question"),
                             "bid": m.get("bestBid"),
                             "ask": m.get("bestAsk"),
                             "vol": m.get("volumeNum"),
                             "ends": str(ev.get("endDate"))[:10]})
-            time.sleep(0.3)
+            time.sleep(0.15)
+        time.sleep(0.15)
     return out
 
 

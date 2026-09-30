@@ -38,6 +38,44 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+ROUND 33 (2026-09-30) — TWO SEPARATE TRACKS. A: crypto-linked macro
+(prediction-market odds as gates, iterate33_macro.py). B: weather temp
+ladders standalone (iterate33_weather.py + fetch_weather.py +
+weather_build.py). NOT merged — different books.
+TRACK A VERDICT — macro-odds gates: REJECTED (consistent with r32).
+Data win: CLOB prices-history serves FULL daily history via
+interval=all&fidelity=1440 (the ~30d prune is intraday only!) ->
+recession-26 odds 341d (6.5%..46.5% range). 33b level gates: FADE 5.45
+base vs 4.75 (risk-on p<35.5%) vs 3.38 (risk-off p>26%); CLIM p>lo
+kills it (-0.82). Quartile gradient (FADE weakest at odds<10.5%:
++0.70%/trade vs +2.5..3.8%) does NOT survive OOS — H1-fit 25pct cut
+applied to H2: SR 1.06 vs 3.20 base. 33c slope d20d veto: FADE 4.56
+vs 5.45; TRIO 5.06 vs 5.79. 33d FOMC-window vetoes (public schedule,
+17 meetings 24m): REJECT — vetoes REMOVE pnl; books EARN inside FOMC
+windows (TRIO +22.3% NAV over 555h in windows, +0.04%/h). 33e Fed
+P(cut) 104d — monitor only. CONCLUSION: macro odds = dashboard/monitor
+material (risk-off gauge), zero book-level conditioning edge; forward
+archive (hourly snapshots) accumulates for event studies.
+TRACK B VERDICT — weather: MACHINERY PROVEN, EDGE PENDING SAMPLE.
+Data: 36 Poly cities have active daily temp ladders; 35-collector
+archive: NWP forecast-as-issued + d1/d2/d3 run vintages (open-meteo
+historical-forecast, 5136h/city), ERA5 obs (638d/city). NWP skill
+(<Aug-01 fit, OOS vs market window): pooled err sd lead1 1.39C,
+lead2 1.62C, lead3 1.80C; per-city biases up to ±2.2C (grid-vs-station)
+— all calibrated out. Pilot backtest (12 settled city-days, the ONLY
+market history Poly retains ~30d; leakage-audited: vintage forecasts +
+pre-entry quotes only, settlement labels separate): implied_sd/NWP_sd
+median 0.90 (market UNDER-dispersed vs our NWP at lead1); Brier market
+0.0657 BEATS raw NWP 0.0875 — crowd is sharp at T-12h. Strategy pilot
+(theta .06): T-12h +0.42/40 trades; T-6h +3.95/45 (NO-side fading
+overpriced legs +2.25/+3.29, hit 76-81%). TOO SMALL to claim; growing
+via hourly snapshot + daily builder (weather_build.py cron 01:20 UTC,
+executable bid/ask pricing, settle-guard 30h). Decision in ~2-4 weeks
+at ~300-500 city-days: if NO-fade edge holds with block-bootstrap CI
+excluding zero -> first standalone non-crypto book. Label-leak audit:
+entries use only vintages known at entry (T-6h truncates same-day run
+at 17h local), market quotes strictly pre-entry, obs = settlement only.
+
 PREDICTION MARKET PLAYBOOK (2026-09-30, round 32b — venues scouted).
 Kalshi catalog: 14,494 series (sports 3.8k, entertainment 2.5k, politics
 2.4k, financials 981, economics 823, weather 410, crypto 275) BUT quotes
