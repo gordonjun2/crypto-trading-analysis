@@ -138,18 +138,82 @@ def poly_open(query, n=10):
     return out
 
 
+def poly_weather():
+    """Active daily high-temp ladders for the core cities (all legs)."""
+    out = []
+    for city in ("Paris", "New York", "Los Angeles", "Seoul", "Hong Kong",
+                 "Shanghai", "Singapore", "London"):
+        s = poly_search(f"highest temperature in {city}", status="active",
+                        n=3)
+        for ev in s[:2]:
+            for m in ev.get("markets", []):
+                out.append({"q": m.get("question"),
+                            "bid": m.get("bestBid"),
+                            "ask": m.get("bestAsk"),
+                            "vol": m.get("volumeNum"),
+                            "ends": str(ev.get("endDate"))[:10]})
+            time.sleep(0.3)
+    return out
+
+
+def poly_macro():
+    """Long-lived macro/event-risk markets (crypto-conditioning candidates)."""
+    out = []
+    for q in ("US recession by end of 2026",
+              "US government shutdown by",
+              "Core CPI MoM"):
+        for ev in poly_search(q, status="active", n=4)[:4]:
+            for m in ev.get("markets", [])[:4]:
+                out.append({"q": m.get("question"),
+                            "bid": m.get("bestBid"),
+                            "ask": m.get("bestAsk"),
+                            "vol": m.get("volumeNum")})
+            time.sleep(0.3)
+    return out
+
+
+WEATHER_CITIES = {  # open-meteo forecast points for the temp ladders
+    "Paris": (48.85, 2.35), "New York": (40.71, -74.01),
+    "Los Angeles": (34.05, -118.24), "Seoul": (37.57, 126.98),
+    "Hong Kong": (22.30, 114.17), "Shanghai": (31.23, 121.47),
+    "Singapore": (1.35, 103.82), "London": (51.51, -0.13),
+}
+
+
+def weather_forecast():
+    """NWP daily max-temp forecasts (open-meteo, free) for the ladder
+    cities — the skill side of the forecast-vs-crowd edge."""
+    out = []
+    for city, (lat, lon) in WEATHER_CITIES.items():
+        r = get(f"https://api.open-meteo.com/v1/forecast?latitude={lat}"
+                f"&longitude={lon}&daily=temperature_2m_max"
+                "&forecast_days=3&temperature_unit=celsius&timezone=UTC")
+        d = (r or {}).get("daily")
+        if d:
+            out.append({"city": city,
+                        "dates": d.get("time"),
+                        "tmax_c": d.get("temperature_2m_max")})
+        time.sleep(0.4)
+    return out
+
+
 def snapshot():
     BASE.mkdir(parents=True, exist_ok=True)
     rec = {"ts": datetime.now(timezone.utc).isoformat(),
            "poly_btc": poly_open("bitcoin price", 8),
            "poly_fed": poly_open("fed interest rate", 8),
+           "poly_weather": poly_weather(),
+           "poly_macro": poly_macro(),
+           "weather_fc": weather_forecast(),
            "kalshi_btcd": kalshi_open("KXBTCD"),
            "kalshi_btc": kalshi_open("KXBTC")}
     with open(SNAP, "a") as fh:
         fh.write(json.dumps(rec) + "\n")
     print(f"snapshot: poly_btc {len(rec['poly_btc'])} poly_fed "
-          f"{len(rec['poly_fed'])} kx_btcd {len(rec['kalshi_btcd'])} "
-          f"kx_btc {len(rec['kalshi_btc'])}")
+          f"{len(rec['poly_fed'])} weather {len(rec['poly_weather'])} "
+          f"macro {len(rec['poly_macro'])} fc {len(rec['weather_fc'])} "
+          f"kx_btcd {len(rec['kalshi_btcd'])} kx_btc "
+          f"{len(rec['kalshi_btc'])}")
 
 
 if __name__ == "__main__":

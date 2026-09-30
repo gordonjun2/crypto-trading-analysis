@@ -38,6 +38,35 @@ FAMILY dead (-0.78 P0 85%); fade new-high re-entry (kills half the trades,
 3.54); hour-of-day windows (00-12 UTC carries, 12-24 weak — no adoptable
 filter); slots 4/12 worse than 8 (5.53/5.64).
 
+PREDICTION MARKET PLAYBOOK (2026-09-30, round 32b — venues scouted).
+Kalshi catalog: 14,494 series (sports 3.8k, entertainment 2.5k, politics
+2.4k, financials 981, economics 823, weather 410, crypto 275) BUT quotes
+/orderbooks/candles are AUTH-WALLED — public API serves market listings
+only. Polymarket: fully public quotes (bestBid/bestAsk) + prices-history.
+PLAYABLE SHORTLIST (Polymarket first, Kalshi needs an account):
+1) WEATHER TEMP LADDERS — the standout standalone play: daily high-temp
+   ladders for ~15 global cities (Paris/NYC/LA/Seoul/HK/Shanghai/...),
+   objective station settlement, liquid mid-legs (14k-40k vol/leg seen),
+   ~zero correlation with the crypto books. Edge mechanism: public NWP
+   forecasts (open-meteo) beat crowd pricing at 1-2 day leads. ARCHIVING
+   BOTH SIDES hourly (market quotes + 3-day forecasts per city) -> in 30
+   days: forecast-vs-market calibration study -> systematic bias = a
+   daily strategy book, diversifying the crypto trio.
+2) US RECESSION 2026 (Poly, live 8-9c): cleanest long-dated macro-regime
+   gauge; probability jumps = risk-off conditioning for the crypto books.
+3) FED DECISIONS (both venues, archived): P(cut) paths -> macro gates.
+4) CPI MONTHLY PRINTS (Poly, active per month): event vol — position
+   management around prints.
+5) GOVERNMENT SHUTDOWN ladder: event risk.
+6) BTC/ETH strike ladders (both venues, archived): implied distribution
+   vs realized — candidate vol-mispricing signal for SQUEEZE.
+NOT OUR EDGE: politics/elections/sports (news-cycled, efficient).
+CONSTRAINTS: all histories ~30d -> every prediction-market strategy is
+forward-validated only (that is what the archive builds); Poly US-access
+and per-venue fees must be checked at execution time.
+INFRA: fetch_prediction.py snapshot extended: poly_weather (176 legs),
+poly_macro (9), weather_fc (open-meteo 3-day forecasts, 8 cities).
+
 FINAL VERDICT (2026-09-30, round 32 — SENTIMENT). User directive: exploit
 the sentimental market (prediction markets, creative methods). RESULTS:
 1) Fear&Greed level has NO forward signal in 24m (regime drift diff
