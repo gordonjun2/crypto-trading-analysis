@@ -203,11 +203,28 @@ def weather_forecast():
     return out
 
 
+def poly_strike_ladders():
+    """BTC/ETH 'above $X on DATE' ladders — daily binary-strike books
+    (settlement: Binance 1m close 12:00 ET) + implied-vol term structure."""
+    out = []
+    for q in ("bitcoin above on", "ethereum above on"):
+        for ev in poly_search(q, status="active", n=8)[:8]:
+            for m in ev.get("markets", [])[:14]:
+                out.append({"q": m.get("question"),
+                            "bid": m.get("bestBid"),
+                            "ask": m.get("bestAsk"),
+                            "vol": m.get("volumeNum"),
+                            "ends": str(ev.get("endDate"))[:10]})
+        time.sleep(0.4)
+    return out
+
+
 def snapshot():
     BASE.mkdir(parents=True, exist_ok=True)
     rec = {"ts": datetime.now(timezone.utc).isoformat(),
            "poly_btc": poly_open("bitcoin price", 8),
            "poly_fed": poly_open("fed interest rate", 8),
+           "poly_strikes": poly_strike_ladders(),
            "poly_weather": poly_weather(),
            "poly_macro": poly_macro(),
            "weather_fc": weather_forecast(),
@@ -216,8 +233,9 @@ def snapshot():
     with open(SNAP, "a") as fh:
         fh.write(json.dumps(rec) + "\n")
     print(f"snapshot: poly_btc {len(rec['poly_btc'])} poly_fed "
-          f"{len(rec['poly_fed'])} weather {len(rec['poly_weather'])} "
-          f"macro {len(rec['poly_macro'])} fc {len(rec['weather_fc'])} "
+          f"{len(rec['poly_fed'])} strikes {len(rec['poly_strikes'])} "
+          f"weather {len(rec['poly_weather'])} macro "
+          f"{len(rec['poly_macro'])} fc {len(rec['weather_fc'])} "
           f"kx_btcd {len(rec['kalshi_btcd'])} kx_btc "
           f"{len(rec['kalshi_btc'])}")
 
