@@ -119,8 +119,36 @@ NOT OUR EDGE: politics/elections/sports (news-cycled, efficient).
 CONSTRAINTS: all histories ~30d -> every prediction-market strategy is
 forward-validated only (that is what the archive builds); Poly US-access
 and per-venue fees must be checked at execution time.
-INFRA: fetch_prediction.py snapshot extended: poly_weather (176 legs),
-poly_macro (9), weather_fc (open-meteo 3-day forecasts, 8 cities).
+ROUND 35 (2026-10-01) — CRYPTO STRIKE LADDERS (Track C). Markets:
+Polymarket "BTC/ETH above $X on DATE(+hour)" binary ladders, incl
+HOURLY expiries; settle = Binance 1m close (our own feed); $300-600k
+liq per event; token hist ~5-7d at 60min fidelity, 1-min fidelity for
+young tokens. BACKFILL: 31 events / 444 legs (fetch_strikes.py) +
+settlement labels + hourly klines. GOTCHAS: (1) freshly created ladders
+carry placeholder p=0.50 mids — "trades" against them are fiction;
+filter: >=2 distinct prints + |p-0.5|>0.02 (the naive run showed
++0.40/trade — pure artifact, real answer below); (2) hourly-event
+tokens are BORN close to expiry — entry must adapt to market lifetime.
+HONEST VERDICT — value-betting vs the ladder: REJECTED at every turn:
+market Brier 0.050 vs realized-vol model 0.067; EWMA(12-96h)/HAR-RV/
+vol-MR-blend/Student-t3-5/drift/theta-.06-.15/market-blend w.3 — ALL
+negative (−0.09..−0.13/trade, 167 legs/15 events; YES side loses
+−0.16, NO ~breakeven). Mechanism: these ladders are Deribit-anchored
+(proper fat tails + term structure); a backward-looking realized-vol
+model has no edge on 0.5-24h crypto binaries. Same lesson as weather:
+crowd beats naive model; only structural edges pay.
+PIVOT (live): strikes as SIGNAL — vol_signal.py (cron :40) solves
+implied forward F + implied sigma*sqrt(tau) from the ladder CDF
+(lognormal 2-leg inversion) + realized EWMA sigma -> vol_signal.jsonl.
+First read: ETH F/S 1.0013 (market drift), implied sig*sqrt(tau)
+0.0037 vs realized 0.0046/h. Battery queued at ~2-4 wks archive:
+VRP sign/stability, F/S as funding proxy, VRP-spike -> SQUEEZE/FADE
+conditioning. (The implied-vol surface for SQUEEZE was the original
+playbook idea — now it has a live collector.)
+INFRA (r33-35): fetch_prediction.py snapshot: poly_btc 400, poly_fed
+150, poly_strikes 182, poly_weather 770 (36 cities), poly_macro 9,
+weather_fc (open-meteo), kalshi listings; weather_build daily;
+vol_signal hourly.
 
 FINAL VERDICT (2026-09-30, round 32 — SENTIMENT). User directive: exploit
 the sentimental market (prediction markets, creative methods). RESULTS:
