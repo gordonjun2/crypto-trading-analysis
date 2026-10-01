@@ -140,7 +140,11 @@ def poly_open(query, n=10):
 
 def poly_weather():
     """Active daily high-temp ladders (all legs, all cities we track)."""
-    from pair_scout.fetch_weather import CITIES
+    try:
+        from pair_scout.fetch_weather import CITIES
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from pair_scout.fetch_weather import CITIES
     out = []
     for city in CITIES:
         s = poly_search(f"highest temperature in {city}", status="active",
